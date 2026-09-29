@@ -1128,7 +1128,26 @@ export default function App() {
           setIsConnected(true);
           setPlayerCount(data.players.length);
           if (data.gameState) {
-            setGameState(data.gameState);
+            setGameState(current => {
+              const incoming = data.gameState;
+              // If we already have a valid local hand in mulligan/fighter setup, protect it
+              if (
+                (current.phase === 'mulligan' || current.phase === 'fighter_setup') &&
+                current.players[playerIdx].hand.length > 0
+              ) {
+                const merged: GameState = JSON.parse(JSON.stringify(incoming));
+                merged.players[playerIdx] = {
+                  ...merged.players[playerIdx],
+                  hand: current.players[playerIdx].hand,
+                  deck: current.players[playerIdx].deck,
+                  mulliganCount: Math.max(merged.players[playerIdx].mulliganCount, current.players[playerIdx].mulliganCount),
+                  mulliganDone: current.players[playerIdx].mulliganDone || merged.players[playerIdx].mulliganDone,
+                  fighter: current.players[playerIdx].fighter || merged.players[playerIdx].fighter,
+                };
+                return merged;
+              }
+              return incoming;
+            });
           }
         } else if (type === 'player_joined') {
           setPlayerCount(data.players.length);
@@ -1139,7 +1158,82 @@ export default function App() {
             });
           }
         } else if (type === 'game_state_synced') {
-          setGameState(data.gameState);
+          if (!data.gameState) return;
+          setGameState(current => {
+            const incoming: GameState = data.gameState;
+            const oppIdx = playerIdx === 0 ? 1 : 0;
+
+            // In concurrent phases (mulligan & fighter_setup), protect local player's hand and progress
+            if (
+              current.phase === 'mulligan' ||
+              current.phase === 'fighter_setup' ||
+              incoming.phase === 'mulligan' ||
+              incoming.phase === 'fighter_setup'
+            ) {
+              const merged: GameState = JSON.parse(JSON.stringify(incoming));
+
+              // Retain local player's hand, deck, mulligan progress, and chosen fighter
+              merged.players[playerIdx] = {
+                ...merged.players[playerIdx],
+                hand: current.players[playerIdx].hand,
+                deck: current.players[playerIdx].deck,
+                mulliganCount: Math.max(merged.players[playerIdx].mulliganCount, current.players[playerIdx].mulliganCount),
+                mulliganDone: current.players[playerIdx].mulliganDone || merged.players[playerIdx].mulliganDone,
+                fighter: current.players[playerIdx].fighter || merged.players[playerIdx].fighter,
+              };
+
+              // Check if both mulligans are done -> transition to fighter_setup
+              if (merged.players[0].mulliganDone && merged.players[1].mulliganDone) {
+                if (merged.phase === 'mulligan') {
+                  merged.phase = 'fighter_setup';
+                }
+              }
+
+              // Check if both fighters are selected -> determine Round 1 initiative
+              if (merged.players[0].fighter && merged.players[1].fighter) {
+                if (merged.phase === 'fighter_setup' || merged.phase === 'mulligan') {
+                  const f1 = merged.players[0].fighter.card;
+                  const f2 = merged.players[1].fighter.card;
+                  const rank1 = typeof f1.rank === 'number' ? f1.rank : 0;
+                  const rank2 = typeof f2.rank === 'number' ? f2.rank : 0;
+
+                  let secondPlayerIndex = 0;
+                  let tieBreaker = '';
+
+                  if (rank1 > rank2) {
+                    secondPlayerIndex = 0;
+                    tieBreaker = `${merged.players[0].name}'s higher value Fighter (${f1.name}) goes Second in Round 1.`;
+                  } else if (rank2 > rank1) {
+                    secondPlayerIndex = 1;
+                    tieBreaker = `${merged.players[1].name}'s higher value Fighter (${f2.name}) goes Second in Round 1.`;
+                  } else {
+                    const p1HasAce = merged.players[0].hand.some(c => c.rank === 1);
+                    const p2HasAce = merged.players[1].hand.some(c => c.rank === 1);
+                    if (p1HasAce && !p2HasAce) {
+                      secondPlayerIndex = 0;
+                      tieBreaker = `${merged.players[0].name} revealed an Ace in hand and goes Second in Round 1.`;
+                    } else if (p2HasAce && !p1HasAce) {
+                      secondPlayerIndex = 1;
+                      tieBreaker = `${merged.players[1].name} revealed an Ace in hand and goes Second in Round 1.`;
+                    } else {
+                      secondPlayerIndex = 0;
+                      tieBreaker = `Fighter values tied! ${merged.players[0].name} goes Second in Round 1.`;
+                    }
+                  }
+
+                  merged.roundInitiativeSecondPlayerIndex = secondPlayerIndex;
+                  merged.activePlayerIndex = secondPlayerIndex === 0 ? 1 : 0;
+                  merged.tieBreakerInfo = tieBreaker;
+                  checkAndInitiateRound(merged);
+                }
+              }
+
+              return merged;
+            }
+
+            // In round action, resolution, or game over, take incoming authoritative state
+            return incoming;
+          });
         }
       },
       connected => {
