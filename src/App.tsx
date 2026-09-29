@@ -53,6 +53,7 @@ import {
   Trophy,
   Sparkles,
   Scissors,
+  Loader2,
 } from 'lucide-react';
 
 export default function App() {
@@ -476,18 +477,22 @@ export default function App() {
 
     if (p1HasFaceClub) {
       state.phase = 'pre_round_face_clubs';
+      state.preRoundPendingPlayerIndex = 0;
       setPreRoundPendingPlayerIndex(0);
     } else if (p2HasFaceClub) {
       if (state.players[1].isAI) {
         executeAiPreRoundFaceClub(state);
         state.phase = 'round_action';
+        state.preRoundPendingPlayerIndex = null;
         setPreRoundPendingPlayerIndex(null);
       } else {
         state.phase = 'pre_round_face_clubs';
+        state.preRoundPendingPlayerIndex = 1;
         setPreRoundPendingPlayerIndex(1);
       }
     } else {
       state.phase = 'round_action';
+      state.preRoundPendingPlayerIndex = null;
       setPreRoundPendingPlayerIndex(null);
     }
   };
@@ -501,17 +506,21 @@ export default function App() {
           if (next.players[1].isAI) {
             executeAiPreRoundFaceClub(next);
             next.phase = 'round_action';
+            next.preRoundPendingPlayerIndex = null;
             setPreRoundPendingPlayerIndex(null);
           } else {
             next.phase = 'pre_round_face_clubs';
+            next.preRoundPendingPlayerIndex = 1;
             setPreRoundPendingPlayerIndex(1);
           }
         } else {
           next.phase = 'round_action';
+          next.preRoundPendingPlayerIndex = null;
           setPreRoundPendingPlayerIndex(null);
         }
       } else {
         next.phase = 'round_action';
+        next.preRoundPendingPlayerIndex = null;
         setPreRoundPendingPlayerIndex(null);
       }
       broadcastGameState(next);
@@ -522,6 +531,7 @@ export default function App() {
   const handleApplyPreRoundDebuff = (card: Card) => {
     const cost = getCardEnergyCost(card);
     const targetIdx = preRoundPendingPlayerIndex ?? 0;
+    const points = getUniversalPoints(card);
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[targetIdx];
@@ -535,10 +545,10 @@ export default function App() {
         card,
         orientation: 'horizontal',
         energyCost: cost,
-        basePoints: 4,
+        basePoints: points,
         boostedPoints: 0,
         debuffedPoints: 0,
-        finalPoints: 4,
+        finalPoints: points,
       });
 
       sounds.playBlock();
@@ -593,6 +603,17 @@ export default function App() {
                 sounds.playHeal();
               }
               return;
+            }
+
+            // If AI plays a Diamond card, boost the corresponding Spade attack (or first action)
+            if (action.card.suit === 'diamonds' && !action.isJokerAction) {
+              const targetAction = action.targetActionId
+                ? aiState.playedActions.find(a => a.id === action.targetActionId)
+                : aiState.playedActions.find(a => a.card.suit === 'spades') || aiState.playedActions[0];
+              if (targetAction) {
+                targetAction.boostedPoints += basePts;
+                targetAction.finalPoints += basePts;
+              }
             }
 
             aiState.playedActions.push({
@@ -898,7 +919,7 @@ export default function App() {
   };
 
   const checkPendingDebuffsAndResolve = (state: GameState) => {
-    // 1. Check Player 0 (Human) for any unassigned Club debuffs
+    // 1. Check Player 0 for any unassigned Club debuffs
     const p1UnassignedClub = state.players[0].playedActions.find(
       a => a.card.suit === 'clubs' && !a.isJokerAction && !a.clubSpecial && !a.targetActionId
     );
@@ -909,10 +930,13 @@ export default function App() {
     const p2HasEquipment = Boolean(state.players[1].minion?.equippedPermanent);
 
     if (p1UnassignedClub && (p2EligibleActions.length > 0 || p2HasEquipment)) {
+      state.pendingDebuffPlayerIndex = 0;
+      state.pendingDebuffActionId = p1UnassignedClub.id;
       setPendingAssignDebuffAction({
         playerIndex: 0,
         actionId: p1UnassignedClub.id,
       });
+      broadcastGameState(state);
       return;
     }
 
@@ -934,31 +958,40 @@ export default function App() {
         const p1EligibleActions = state.players[0].playedActions.filter(
           a => a.heartDeclaration !== 'heal' && a.finalPoints > 0
         );
-        if (p1EligibleActions.length > 0) {
+        const p1HasEquipment = Boolean(state.players[0].minion?.equippedPermanent);
+        if (p1EligibleActions.length > 0 || p1HasEquipment) {
+          state.pendingDebuffPlayerIndex = 1;
+          state.pendingDebuffActionId = p2UnassignedClub.id;
           setPendingAssignDebuffAction({
             playerIndex: 1,
             actionId: p2UnassignedClub.id,
           });
+          broadcastGameState(state);
           return;
         }
       }
     }
 
+    state.pendingDebuffPlayerIndex = null;
+    state.pendingDebuffActionId = null;
     triggerCombatResolution(state);
   };
 
   const handleConfirmDebuffTarget = (targetActionId?: string) => {
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
-      if (pendingAssignDebuffAction) {
-        const player = next.players[pendingAssignDebuffAction.playerIndex];
-        const act = player.playedActions.find(a => a.id === pendingAssignDebuffAction.actionId);
+      const targetDebuffPlayerIdx = next.pendingDebuffPlayerIndex ?? pendingAssignDebuffAction?.playerIndex ?? 0;
+      const targetDebuffActionId = next.pendingDebuffActionId ?? pendingAssignDebuffAction?.actionId;
+
+      if (targetDebuffActionId) {
+        const player = next.players[targetDebuffPlayerIdx];
+        const act = player.playedActions.find(a => a.id === targetDebuffActionId);
         if (act) {
           if (targetActionId) {
             act.targetActionId = targetActionId;
           } else {
             // Auto-target highest
-            const oppIdx = pendingAssignDebuffAction.playerIndex === 0 ? 1 : 0;
+            const oppIdx = targetDebuffPlayerIdx === 0 ? 1 : 0;
             const opp = next.players[oppIdx];
             const eligible = opp.playedActions
               .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
@@ -971,8 +1004,10 @@ export default function App() {
       }
 
       setPendingAssignDebuffAction(null);
+      next.pendingDebuffPlayerIndex = null;
+      next.pendingDebuffActionId = null;
 
-      // Check if Player 1 also has an unassigned debuff
+      // Check if Player 1 also has an unassigned debuff (if not AI)
       const p2UnassignedClub = next.players[1].playedActions.find(
         a => a.card.suit === 'clubs' && !a.isJokerAction && !a.clubSpecial && !a.targetActionId
       );
@@ -985,10 +1020,13 @@ export default function App() {
             p2UnassignedClub.targetActionId = p1Eligible[0].id;
           }
         } else {
+          next.pendingDebuffPlayerIndex = 1;
+          next.pendingDebuffActionId = p2UnassignedClub.id;
           setPendingAssignDebuffAction({
             playerIndex: 1,
             actionId: p2UnassignedClub.id,
           });
+          broadcastGameState(next);
           return next;
         }
       }
@@ -1004,17 +1042,20 @@ export default function App() {
   const handleConfirmDebuffShatterEquipment = () => {
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
-      if (pendingAssignDebuffAction) {
-        const oppIdx = pendingAssignDebuffAction.playerIndex === 0 ? 1 : 0;
-        const opp = next.players[oppIdx];
-        if (opp.minion?.equippedPermanent) {
-          const destroyed = opp.minion.equippedPermanent.card;
-          opp.minion.equippedPermanent = undefined;
-          opp.discardPile.push(destroyed);
-          sounds.playCardRotate();
-        }
+      const targetDebuffPlayerIdx = next.pendingDebuffPlayerIndex ?? pendingAssignDebuffAction?.playerIndex ?? 0;
+      const oppIdx = targetDebuffPlayerIdx === 0 ? 1 : 0;
+      const opp = next.players[oppIdx];
+
+      if (opp.minion?.equippedPermanent) {
+        const destroyed = opp.minion.equippedPermanent.card;
+        opp.minion.equippedPermanent = undefined;
+        opp.discardPile.push(destroyed);
+        sounds.playCardRotate();
       }
+
       setPendingAssignDebuffAction(null);
+      next.pendingDebuffPlayerIndex = null;
+      next.pendingDebuffActionId = null;
 
       const { updatedState } = resolveCombatRound(next);
       updatedState.phase = 'resolution';
@@ -1166,7 +1207,12 @@ export default function App() {
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                <Globe className="w-3.5 h-3.5" /> Live Multiplayer
+                <Globe className="w-3.5 h-3.5" />
+                <span>
+                  {mode === 'websocket_multiplayer' && roomCode
+                    ? `Room: ${roomCode} ${isHost ? '(Host)' : '(Challenger)'}`
+                    : 'Live Multiplayer'}
+                </span>
               </button>
             </div>
 
@@ -1182,10 +1228,13 @@ export default function App() {
             {/* Multiplayer Button (Mobile / Global) */}
             <button
               onClick={() => setShowMultiplayer(true)}
-              className="sm:hidden p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-emerald-400 border border-stone-700 cursor-pointer"
+              className="sm:hidden p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-emerald-400 border border-stone-700 cursor-pointer relative"
               title="Multiplayer"
             >
               <Globe className="w-4 h-4" />
+              {mode === 'websocket_multiplayer' && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              )}
             </button>
 
             {/* Audio Toggle */}
@@ -1231,6 +1280,12 @@ export default function App() {
           gameState={gameState}
           localPlayerIndex={localPlayerIndex}
           isAiThinking={isAiThinking}
+          mode={mode}
+          roomCode={roomCode}
+          isHost={isHost}
+          isConnected={isConnected}
+          playerCount={playerCount}
+          onOpenMultiplayer={() => setShowMultiplayer(true)}
           onPlayActionCard={handlePlayActionCard}
           onSummonMinion={handleSummonMinion}
           onBoostMinionHp={handleBoostMinionHp}
@@ -1389,22 +1444,45 @@ export default function App() {
               player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
               player.energy -= cost;
 
-              if (targetCardId && opp.bankedCardId === targetCardId) {
+              // Immediately remove card from opponent hand & send to opponent discard pile!
+              let discardedCard: Card | undefined = undefined;
+              if (targetCardId) {
+                const cIdx = opp.hand.findIndex(c => c.id === targetCardId);
+                if (cIdx >= 0) {
+                  discardedCard = opp.hand.splice(cIdx, 1)[0];
+                  opp.discardPile.push(discardedCard);
+                }
+              } else if (opp.hand.length > 0) {
+                const randIdx = Math.floor(Math.random() * opp.hand.length);
+                discardedCard = opp.hand.splice(randIdx, 1)[0];
+                opp.discardPile.push(discardedCard);
+              }
+
+              if (discardedCard && opp.bankedCardId === discardedCard.id) {
                 opp.bankedCardId = null;
                 opp.energy = Math.min(3, opp.energy + 1);
               }
 
+              const clubPts = getUniversalPoints(pendingClubCard);
               player.playedActions.push({
                 id: `act_jack_${Date.now()}`,
                 card: pendingClubCard,
                 orientation: 'horizontal',
                 energyCost: cost,
-                basePoints: 4,
+                basePoints: clubPts,
                 boostedPoints: 0,
                 debuffedPoints: 0,
-                finalPoints: 4,
-                clubSpecial: { type: 'jack', targetCardId },
+                finalPoints: clubPts,
+                clubSpecial: {
+                  type: 'jack',
+                  targetCardId,
+                  discardedCardName: discardedCard?.name,
+                },
               });
+
+              if (discardedCard) {
+                setPreRoundAnnouncement(`⚔️ Discard Ambush! ${player.name} played Jack of Clubs and forced ${opp.name} to discard ${discardedCard.name}!`);
+              }
 
               sounds.playCardRotate();
               broadcastGameState(next);
@@ -1429,22 +1507,39 @@ export default function App() {
               player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
               player.energy -= cost;
 
-              if (opp.bankedCardId === targetCardId) {
+              // Immediately remove card from opponent hand & send to opponent discard pile!
+              let discardedCard: Card | undefined = undefined;
+              const cIdx = opp.hand.findIndex(c => c.id === targetCardId);
+              if (cIdx >= 0) {
+                discardedCard = opp.hand.splice(cIdx, 1)[0];
+                opp.discardPile.push(discardedCard);
+              }
+
+              if (discardedCard && opp.bankedCardId === discardedCard.id) {
                 opp.bankedCardId = null;
                 opp.energy = Math.min(3, opp.energy + 1);
               }
 
+              const clubPts = getUniversalPoints(pendingClubCard);
               player.playedActions.push({
                 id: `act_queen_${Date.now()}`,
                 card: pendingClubCard,
                 orientation: 'horizontal',
                 energyCost: cost,
-                basePoints: 4,
+                basePoints: clubPts,
                 boostedPoints: 0,
                 debuffedPoints: 0,
-                finalPoints: 4,
-                clubSpecial: { type: 'queen', targetCardId },
+                finalPoints: clubPts,
+                clubSpecial: {
+                  type: 'queen',
+                  targetCardId,
+                  discardedCardName: discardedCard?.name,
+                },
               });
+
+              if (discardedCard) {
+                setPreRoundAnnouncement(`👁️ Mind Vision! ${player.name} played Queen of Clubs and discarded ${opp.name}'s ${discardedCard.name}!`);
+              }
 
               sounds.playCardRotate();
               broadcastGameState(next);
@@ -1472,8 +1567,9 @@ export default function App() {
                   opp.energy = Math.min(3, opp.energy + 1);
                 }
                 const cIdx = opp.hand.findIndex(c => c.id === stolenCardId);
+                let stolenCard: Card | undefined = undefined;
                 if (cIdx >= 0) {
-                  const stolenCard = opp.hand.splice(cIdx, 1)[0];
+                  stolenCard = opp.hand.splice(cIdx, 1)[0];
                   if (asMinion && stolenCard.rank === 1) {
                     if (!player.minion) {
                       player.minion = {
@@ -1494,6 +1590,14 @@ export default function App() {
                     }
                   } else {
                     const basePts = getUniversalPoints(stolenCard);
+                    if (stolenCard.suit === 'diamonds') {
+                      const targetAction = player.playedActions.find(a => a.card.suit === 'spades');
+                      if (targetAction) {
+                        targetAction.boostedPoints += basePts;
+                        targetAction.finalPoints += basePts;
+                      }
+                    }
+
                     player.playedActions.push({
                       id: `stolen_play_${Date.now()}`,
                       card: stolenCard,
@@ -1507,6 +1611,28 @@ export default function App() {
                     });
                   }
                 }
+
+                const clubPts = getUniversalPoints(pendingClubCard);
+                // Add the King of Clubs card itself to playedActions!
+                player.playedActions.push({
+                  id: `act_king_${Date.now()}`,
+                  card: pendingClubCard,
+                  orientation: 'horizontal',
+                  energyCost: 3,
+                  basePoints: clubPts,
+                  boostedPoints: 0,
+                  debuffedPoints: 0,
+                  finalPoints: clubPts,
+                  clubSpecial: {
+                    type: 'king',
+                    stolenCard: stolenCard,
+                  },
+                });
+
+                if (stolenCard) {
+                  setPreRoundAnnouncement(`👑 Grand Heist! ${player.name} played King of Clubs and stole ${opp.name}'s ${stolenCard.name}${asMinion && stolenCard.rank === 1 ? ' as a Minion' : ''}!`);
+                }
+
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= 3;
               } else {
@@ -1535,34 +1661,73 @@ export default function App() {
 
       {/* Pre-Round Face Club Modal */}
       {gameState.phase === 'pre_round_face_clubs' &&
-        preRoundPendingPlayerIndex !== null &&
+        (gameState.preRoundPendingPlayerIndex ?? preRoundPendingPlayerIndex) === localPlayerIndex &&
         !pendingClubCard && (
           <PreRoundClubModal
-            player={gameState.players[preRoundPendingPlayerIndex]}
-            opponent={gameState.players[preRoundPendingPlayerIndex === 0 ? 1 : 0]}
+            player={gameState.players[localPlayerIndex]}
+            opponent={gameState.players[localPlayerIndex === 0 ? 1 : 0]}
             roundNumber={gameState.roundNumber}
             onApplyDisruption={card => setPendingClubCard(card)}
             onApplyDebuff={card => handleApplyPreRoundDebuff(card)}
-            onPass={() => handlePreRoundPlayerFinished(preRoundPendingPlayerIndex)}
+            onPass={() => handlePreRoundPlayerFinished(localPlayerIndex)}
           />
         )}
 
-      {/* Assign Pre-Committed Debuff Modal (When First Player Chooses Target Before Resolution) */}
-      {pendingAssignDebuffAction && (() => {
-        const actingPlayer = gameState.players[pendingAssignDebuffAction.playerIndex];
-        const targetOpponent = gameState.players[pendingAssignDebuffAction.playerIndex === 0 ? 1 : 0];
-        const clubAct = actingPlayer.playedActions.find(a => a.id === pendingAssignDebuffAction.actionId);
-        if (!clubAct) return null;
+      {/* Pre-Round Waiting indicator for the other player */}
+      {gameState.phase === 'pre_round_face_clubs' &&
+        (gameState.preRoundPendingPlayerIndex ?? preRoundPendingPlayerIndex) !== localPlayerIndex && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-stone-900 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl max-w-md w-full text-center flex flex-col items-center">
+              <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+              <h3 className="text-lg font-serif font-bold text-emerald-300">
+                Pre-Round Face Club In Progress
+              </h3>
+              <p className="text-xs text-stone-300 mt-2">
+                {gameState.players[gameState.preRoundPendingPlayerIndex ?? 0]?.name || 'Opponent'} holds a Face Club card and is choosing their Pre-Round strike (Disruption or 4-Point Debuff)...
+              </p>
+              <span className="text-[10px] text-stone-500 mt-4">Combat actions will begin once they decide.</span>
+            </div>
+          </div>
+        )}
 
-        return (
-          <AssignDebuffModal
-            clubAction={clubAct}
-            opponent={targetOpponent}
-            onConfirmTarget={targetActionId => handleConfirmDebuffTarget(targetActionId)}
-            onConfirmDestroyEquipment={() => handleConfirmDebuffShatterEquipment()}
-            onAutoTargetHighest={() => handleConfirmDebuffTarget(undefined)}
-          />
-        );
+      {/* Assign Pre-Committed Debuff Modal (When Player Chooses Target Before Resolution) */}
+      {(() => {
+        const pendingIdx = gameState.pendingDebuffPlayerIndex ?? pendingAssignDebuffAction?.playerIndex;
+        const pendingActionId = gameState.pendingDebuffActionId ?? pendingAssignDebuffAction?.actionId;
+        if (pendingIdx === undefined || pendingIdx === null || !pendingActionId) return null;
+
+        if (pendingIdx === localPlayerIndex) {
+          const actingPlayer = gameState.players[pendingIdx];
+          const targetOpponent = gameState.players[pendingIdx === 0 ? 1 : 0];
+          const clubAct = actingPlayer.playedActions.find(a => a.id === pendingActionId);
+          if (!clubAct) return null;
+
+          return (
+            <AssignDebuffModal
+              clubAction={clubAct}
+              opponent={targetOpponent}
+              onConfirmTarget={targetActionId => handleConfirmDebuffTarget(targetActionId)}
+              onConfirmDestroyEquipment={() => handleConfirmDebuffShatterEquipment()}
+              onAutoTargetHighest={() => handleConfirmDebuffTarget(undefined)}
+            />
+          );
+        } else {
+          const oppName = gameState.players[pendingIdx]?.name || 'Opponent';
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-stone-900 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl max-w-md w-full text-center flex flex-col items-center">
+                <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+                <h3 className="text-lg font-serif font-bold text-emerald-300">
+                  Opponent Assigning Club Debuff
+                </h3>
+                <p className="text-xs text-stone-300 mt-2">
+                  {oppName} played a Club Debuff earlier and is now selecting which of your cards to weaken before attacks clash!
+                </p>
+                <span className="text-[10px] text-stone-500 mt-4">Combat resolution will begin immediately after.</span>
+              </div>
+            </div>
+          );
+        }
       })()}
 
       {/* Resolution Overlay */}
@@ -1606,7 +1771,7 @@ export default function App() {
       {/* Official Rules Modal */}
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
 
-      {/* WebSocket Multiplayer Modal */}
+      {/* WebSocket / Supabase Multiplayer Modal */}
       {showMultiplayer && (
         <MultiplayerModal
           currentMode={mode}
@@ -1616,6 +1781,15 @@ export default function App() {
           playerCount={playerCount}
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
+          onLeaveRoom={() => {
+            socketService.disconnect();
+            setMode('ai');
+            setRoomCode('');
+            setIsHost(false);
+            setLocalPlayerIndex(0);
+            setShowMultiplayer(false);
+            handleRestartMatch();
+          }}
           onClose={() => setShowMultiplayer(false)}
         />
       )}

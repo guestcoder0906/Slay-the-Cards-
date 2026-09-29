@@ -508,6 +508,18 @@ export class AIPlayerService {
         heartDeclaration: heartDec,
       });
 
+      playedActions.push({
+        id: `ai_plan_${cardToPlay.id}`,
+        card: cardToPlay,
+        orientation: 'horizontal',
+        energyCost: cost,
+        basePoints: getUniversalPoints(cardToPlay),
+        boostedPoints: 0,
+        debuffedPoints: 0,
+        finalPoints: getUniversalPoints(cardToPlay),
+        heartDeclaration: heartDec,
+      });
+
       const idx = hand.findIndex(c => c.id === cardToPlay.id);
       if (idx >= 0) hand.splice(idx, 1);
       currentEnergy -= cost;

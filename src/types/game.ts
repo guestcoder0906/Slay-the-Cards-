@@ -30,6 +30,7 @@ export interface PlayedActionCard {
     type: 'jack' | 'queen' | 'king';
     targetCardId?: string;
     stolenCard?: Card;
+    discardedCardName?: string;
   };
 }
 
@@ -110,6 +111,9 @@ export interface GameState {
   combatLogs: CombatLogStep[];
   isResolving: boolean;
   currentResolutionStepIndex: number;
+  preRoundPendingPlayerIndex?: number | null;
+  pendingDebuffPlayerIndex?: number | null;
+  pendingDebuffActionId?: string | null;
   tieBreakerInfo?: string;
 }
 

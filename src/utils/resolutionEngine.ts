@@ -96,58 +96,40 @@ export function resolveCombatRound(currentState: GameState): {
           }
         }
 
-        // Jack of clubs: chosen discard (inspect hand & discard chosen card)
-        if (action.clubSpecial?.type === 'jack' && target.hand.length > 0) {
-          let discarded: Card | undefined = undefined;
-          if (action.clubSpecial.targetCardId) {
-            const cIdx = target.hand.findIndex(c => c.id === action.clubSpecial?.targetCardId);
-            if (cIdx >= 0) {
-              discarded = target.hand.splice(cIdx, 1)[0];
-            }
-          }
-          if (!discarded && target.hand.length > 0) {
-            const randIdx = Math.floor(Math.random() * target.hand.length);
-            discarded = target.hand.splice(randIdx, 1)[0];
-          }
-
-          if (discarded) {
-            target.discardPile.push(discarded);
-            logs.push({
-              id: `jack_discard_${action.id}`,
-              phase: 'clubs',
-              title: `${source.name}'s Jack of Clubs Ambush!`,
-              description: `${source.name} inspected ${target.name}'s hand and forced them to discard ${discarded.name}!`,
-              sourcePlayerId: source.id,
-              targetPlayerId: target.id,
-            });
-          }
+        // Jack of clubs: ambush discard log
+        if (action.clubSpecial?.type === 'jack') {
+          logs.push({
+            id: `jack_discard_${action.id}`,
+            phase: 'clubs',
+            title: `${source.name}'s Jack of Clubs Ambush!`,
+            description: `${source.name} forced ${target.name} to discard ${action.clubSpecial.discardedCardName || 'a card'}!`,
+            sourcePlayerId: source.id,
+            targetPlayerId: target.id,
+          });
         }
 
-        // Queen of clubs: targeted discard
-        if (action.clubSpecial?.type === 'queen' && target.hand.length > 0) {
-          let discarded: Card | undefined = undefined;
-          if (action.clubSpecial.targetCardId) {
-            const cIdx = target.hand.findIndex(c => c.id === action.clubSpecial?.targetCardId);
-            if (cIdx >= 0) {
-              discarded = target.hand.splice(cIdx, 1)[0];
-            }
-          }
-          if (!discarded && target.hand.length > 0) {
-            const randIdx = Math.floor(Math.random() * target.hand.length);
-            discarded = target.hand.splice(randIdx, 1)[0];
-          }
+        // Queen of clubs: targeted discard log
+        if (action.clubSpecial?.type === 'queen') {
+          logs.push({
+            id: `queen_discard_${action.id}`,
+            phase: 'clubs',
+            title: `${source.name}'s Queen of Clubs Mind Vision!`,
+            description: `${source.name} inspected ${target.name}'s hand and forced them to discard ${action.clubSpecial.discardedCardName || 'a card'}!`,
+            sourcePlayerId: source.id,
+            targetPlayerId: target.id,
+          });
+        }
 
-          if (discarded) {
-            target.discardPile.push(discarded);
-            logs.push({
-              id: `queen_discard_${action.id}`,
-              phase: 'clubs',
-              title: `${source.name}'s Queen of Clubs Mind Vision!`,
-              description: `${source.name} inspected ${target.name}'s hand and forced them to discard ${discarded.name}!`,
-              sourcePlayerId: source.id,
-              targetPlayerId: target.id,
-            });
-          }
+        // King of clubs: grand heist log
+        if (action.clubSpecial?.type === 'king') {
+          logs.push({
+            id: `king_heist_${action.id}`,
+            phase: 'clubs',
+            title: `${source.name}'s King of Clubs Grand Heist!`,
+            description: `${source.name} executed a Grand Heist, stealing ${action.clubSpecial.stolenCard?.name || 'opponent card'}!`,
+            sourcePlayerId: source.id,
+            targetPlayerId: target.id,
+          });
         }
       }
     });
@@ -340,10 +322,17 @@ export function resolveCombatRound(currentState: GameState): {
   // -------------------------------------------------------------
   // STEP 5: CLEANUP & DECK REPLENISHMENT
   // -------------------------------------------------------------
-  [p1, p2].forEach(player => {
-    // Discard horizontal action cards
+  [
+    { player: p1, opponent: p2 },
+    { player: p2, opponent: p1 },
+  ].forEach(({ player, opponent }) => {
+    // Discard horizontal action cards (returning any stolen card to opponent's discard)
     player.playedActions.forEach(a => {
-      player.discardPile.push(a.card);
+      if (a.id.startsWith('stolen_') || a.id.startsWith('ai_stolen_')) {
+        opponent.discardPile.push(a.card);
+      } else {
+        player.discardPile.push(a.card);
+      }
     });
     player.playedActions = [];
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, GameState, HeartDeclaration, PlayedActionCard, PlayerState } from '../types/game';
+import { Card, GameState, HeartDeclaration, MultiplayerMode, PlayedActionCard, PlayerState } from '../types/game';
 import { CardView } from './CardView';
 import {
   canEquipToMinion,
@@ -33,12 +33,19 @@ import {
   ArrowRight,
   Clock,
   Loader2,
+  Share2,
 } from 'lucide-react';
 
 interface TableBoardProps {
   gameState: GameState;
   localPlayerIndex: number;
   isAiThinking?: boolean;
+  mode?: MultiplayerMode;
+  roomCode?: string;
+  isHost?: boolean;
+  isConnected?: boolean;
+  playerCount?: number;
+  onOpenMultiplayer?: () => void;
   onPlayActionCard: (card: Card, orientation: 'horizontal', targetActionId?: string, heartDec?: HeartDeclaration) => void;
   onSummonMinion: (card: Card) => void;
   onBoostMinionHp: (card: Card) => void;
@@ -55,6 +62,12 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   gameState,
   localPlayerIndex,
   isAiThinking = false,
+  mode,
+  roomCode,
+  isHost = false,
+  isConnected = false,
+  playerCount = 1,
+  onOpenMultiplayer,
   onPlayActionCard,
   onSummonMinion,
   onBoostMinionHp,
@@ -359,6 +372,69 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
   return (
     <div className="relative w-full max-w-6xl mx-auto flex flex-col gap-4">
+      {/* Multiplayer Room Status Bar */}
+      {mode === 'websocket_multiplayer' && roomCode && (
+        <div
+          className={`p-3.5 rounded-2xl border transition-all flex flex-wrap items-center justify-between gap-3 shadow-xl ${
+            playerCount < 2
+              ? 'bg-amber-950/50 border-amber-500/60 text-amber-200 ring-1 ring-amber-500/30'
+              : 'bg-emerald-950/50 border-emerald-500/60 text-emerald-200 ring-1 ring-emerald-500/30'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`w-3 h-3 rounded-full shrink-0 ${
+                isConnected
+                  ? playerCount < 2
+                    ? 'bg-amber-400 animate-ping'
+                    : 'bg-emerald-400 animate-pulse'
+                  : 'bg-rose-500'
+              }`}
+            />
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-xs uppercase tracking-wider text-stone-200">
+                  {playerCount < 2 ? 'Multiplayer Match Waiting' : 'Live 1v1 Multiplayer Active'}
+                </span>
+                <span className="font-mono font-black text-amber-300 px-2 py-0.5 rounded-md bg-stone-900 border border-stone-700 text-xs tracking-wider select-all">
+                  ROOM: {roomCode}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 font-semibold border border-stone-700">
+                  {isHost ? 'You are Host (P1)' : 'You are Challenger (P2)'}
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-300 mt-1">
+                {playerCount < 2
+                  ? 'Waiting for challenger to join. Copy and share your invite link to begin!'
+                  : 'Both players connected & synchronized! Play turns and cards in real time.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const inviteUrl = `${window.location.origin}?room=${roomCode}`;
+                navigator.clipboard.writeText(inviteUrl);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
+              title="Copy shareable invite link"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Copy Link</span>
+            </button>
+            {onOpenMultiplayer && (
+              <button
+                onClick={onOpenMultiplayer}
+                className="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold border border-stone-700 cursor-pointer transition-colors"
+              >
+                Match Info
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ================= OPPONENT ZONE ================= */}
       <div className="relative rounded-2xl bg-gradient-to-b from-stone-900/90 to-stone-950/90 border border-stone-800 p-4 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-stone-800/80 text-xs">
