@@ -132,6 +132,9 @@ export class RealtimeGameService {
         .on('broadcast', { event: 'game_action' }, ({ payload }) => {
           this.onMessageCallback?.('game_action', payload);
         })
+        .on('broadcast', { event: 'match_ended' }, ({ payload }) => {
+          this.onMessageCallback?.('match_ended', payload);
+        })
         .on('broadcast', { event: 'chat_message' }, ({ payload }) => {
           this.onMessageCallback?.('chat_message', payload);
         })
@@ -278,6 +281,29 @@ export class RealtimeGameService {
           type: 'chat_message',
           sender,
           text,
+        })
+      );
+    }
+  }
+
+  public endMatch(reason?: string) {
+    if (this.channel) {
+      this.channel.send({
+        type: 'broadcast',
+        event: 'match_ended',
+        payload: {
+          reason: reason || 'Multiplayer match reset by player',
+          senderId: this.playerId,
+          senderName: this.playerName,
+        },
+      });
+    } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: 'end_match',
+          reason: reason || 'Multiplayer match reset by player',
+          senderName: this.playerName,
+          senderId: this.playerId,
         })
       );
     }

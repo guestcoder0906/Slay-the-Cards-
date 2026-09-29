@@ -54,6 +54,8 @@ import {
   Sparkles,
   Scissors,
   Loader2,
+  AlertCircle,
+  LogOut,
 } from 'lucide-react';
 
 export default function App() {
@@ -80,6 +82,7 @@ export default function App() {
   const [isHost, setIsHost] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [playerCount, setPlayerCount] = useState(1);
+  const [matchEndedNotification, setMatchEndedNotification] = useState<string | null>(null);
 
   // Core Game State
   const [gameState, setGameState] = useState<GameState>(() => initNewGame('Player 1', 'Strategic AI', true));
@@ -1157,6 +1160,21 @@ export default function App() {
               return curr;
             });
           }
+        } else if (type === 'match_ended') {
+          // Opponent or host ended and reset the multiplayer match
+          socketService.disconnect();
+          setMode('ai');
+          setRoomCode('');
+          setIsHost(false);
+          setLocalPlayerIndex(0);
+          setIsConnected(false);
+          setPlayerCount(1);
+          const endMsg = data.reason || `The multiplayer match was ended and reset by ${data.endedBy || 'the other player'}.`;
+          setMatchEndedNotification(endMsg);
+          const fresh = initNewGame('Player 1', 'Strategic AI', true);
+          setGameState(fresh);
+        } else if (type === 'player_left') {
+          setPlayerCount(data.players ? data.players.length : 1);
         } else if (type === 'game_state_synced') {
           if (!data.gameState) return;
           setGameState(current => {
@@ -1248,12 +1266,23 @@ export default function App() {
     }
   };
 
-  // Restart match
+  // Restart match (if in multiplayer, notify opponent, end session for both, and return to single player)
   const handleRestartMatch = () => {
     sounds.playShuffle();
-    const fresh = initNewGame('Player 1', mode === 'ai' ? 'Strategic AI' : 'Player 2', mode === 'ai');
+    if (mode === 'websocket_multiplayer') {
+      const senderRole = isHost ? 'Player 1 (Host)' : 'Player 2 (Challenger)';
+      socketService.endMatch(`The multiplayer match was ended and reset by ${senderRole}.`);
+      socketService.disconnect();
+      setMode('ai');
+      setRoomCode('');
+      setIsHost(false);
+      setLocalPlayerIndex(0);
+      setIsConnected(false);
+      setPlayerCount(1);
+      setMatchEndedNotification('You ended and reset the multiplayer game. You have been returned to Single Player mode.');
+    }
+    const fresh = initNewGame('Player 1', 'Strategic AI', true);
     setGameState(fresh);
-    broadcastGameState(fresh);
   };
 
   return (
@@ -1343,8 +1372,16 @@ export default function App() {
             {/* Restart Match */}
             <button
               onClick={handleRestartMatch}
-              className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-amber-400 border border-stone-700 cursor-pointer"
-              title="Restart Match"
+              className={`p-2 rounded-xl border cursor-pointer transition-all ${
+                mode === 'websocket_multiplayer'
+                  ? 'bg-rose-950/60 hover:bg-rose-900/80 text-rose-400 border-rose-700/60 shadow-md shadow-rose-950/40'
+                  : 'bg-stone-800 hover:bg-stone-700 text-amber-400 border-stone-700'
+              }`}
+              title={
+                mode === 'websocket_multiplayer'
+                  ? 'End Multiplayer Game & Reset'
+                  : 'Restart Match'
+              }
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -1884,6 +1921,42 @@ export default function App() {
           }}
           onClose={() => setShowMultiplayer(false)}
         />
+      )}
+
+      {/* Multiplayer Game Ended / Reset Notification Dialog */}
+      {matchEndedNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="relative w-full max-w-md bg-stone-900 border-2 border-amber-500/70 rounded-3xl p-6 shadow-2xl text-stone-100 flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 shadow-inner">
+              <LogOut className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-serif font-black text-amber-300 mb-2">
+              Multiplayer Match Ended
+            </h3>
+            <p className="text-stone-300 text-sm mb-6 leading-relaxed">
+              {matchEndedNotification}
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+              <button
+                onClick={() => setMatchEndedNotification(null)}
+                className="w-full py-3 px-4 bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-xs rounded-xl border border-stone-700 cursor-pointer transition-colors"
+              >
+                Play VS AI
+              </button>
+              <button
+                onClick={() => {
+                  setMatchEndedNotification(null);
+                  setShowMultiplayer(true);
+                }}
+                className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 cursor-pointer transition-all flex items-center justify-center gap-1.5"
+              >
+                <Globe className="w-4 h-4" />
+                <span>Multiplayer Lobby</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

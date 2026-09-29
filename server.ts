@@ -138,6 +138,19 @@ wss.on('connection', (ws: WebSocket) => {
           text: msg.text,
           time: Date.now(),
         });
+      } else if (msg.type === 'end_match' || msg.type === 'reset_match') {
+        if (!currentRoomCode) return;
+        const room = rooms.get(currentRoomCode);
+        if (!room) return;
+
+        broadcastToRoom(room, {
+          type: 'match_ended',
+          reason: msg.reason || 'The multiplayer match was ended and reset.',
+          endedBy: msg.senderName || 'Opponent',
+          senderId: playerId,
+        });
+
+        rooms.delete(currentRoomCode);
       }
     } catch (err) {
       console.error('WebSocket message parsing error:', err);
