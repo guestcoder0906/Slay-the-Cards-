@@ -64,7 +64,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
               <div className="p-4 bg-stone-950 rounded-xl border border-stone-800 space-y-2">
                 <h4 className="font-bold text-amber-300">The Mulligan Rule</h4>
                 <p className="text-xs">
-                  Players may mulligan any amount of times (until hand is empty): shuffle your 5 cards back into the deck, draw 5 fresh cards, and place <strong className="text-amber-400">+1 card you choose on the bottom of the deck</strong> every time you mulligan.
+                  Players may mulligan any amount of times (until hand is empty): shuffle your cards back into the deck, draw a 5-card new hand reset, and place <strong className="text-amber-400">1 card you choose on the bottom of the deck</strong> after receiving your new hand (not before).
                 </p>
               </div>
               <div className="p-4 bg-stone-950 rounded-xl border border-stone-800 space-y-2">
