@@ -392,16 +392,33 @@ export const TableBoard: React.FC<TableBoardProps> = ({
           {/* Opponent Energy Crystals */}
           <div className="flex items-center gap-1.5">
             <span className="text-stone-400 font-semibold mr-1">Energy:</span>
-            {[...Array(opponent.maxEnergy || 3)].map((_, i) => (
-              <div
-                key={i}
-                className={`w-4 h-4 rounded-full border shadow-sm transition-all ${
-                  i < opponent.energy
-                    ? 'bg-blue-500 border-blue-300 shadow-blue-500/50'
-                    : 'bg-stone-800 border-stone-700 opacity-40'
-                }`}
-              />
-            ))}
+            <span className="text-xs font-mono font-bold text-stone-300 mr-1">{opponent.energy}/3</span>
+            {opponent.bankedCardId && (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 mr-1"
+                title="1 Energy is reserved to bank 1 card into the next round"
+              >
+                ⚡ 1 Banked
+              </span>
+            )}
+            <div className="flex gap-1">
+              {[...Array(opponent.maxEnergy || 3)].map((_, i) => {
+                const isBankedSlot = Boolean(opponent.bankedCardId) && i === opponent.energy;
+                return (
+                  <div
+                    key={i}
+                    className={`w-4 h-4 rounded-full border shadow-sm transition-all ${
+                      i < opponent.energy
+                        ? 'bg-blue-500 border-blue-300 shadow-blue-500/50'
+                        : isBankedSlot
+                        ? 'bg-emerald-600 border-emerald-400 shadow-emerald-500/30 ring-1 ring-emerald-400/50'
+                        : 'bg-stone-800 border-stone-700 opacity-40'
+                    }`}
+                    title={isBankedSlot ? '1 Energy reserved for banked card' : undefined}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -852,17 +869,30 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
               {/* Bank for next round */}
               <button
-                disabled={player.energy < 1 && player.bankedCardId !== selectedCardForAction.id}
+                disabled={player.energy < 1 && player.bankedCardId !== selectedCardForAction.id && !player.bankedCardId}
                 onClick={() => onBankCard(selectedCardForAction.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   player.bankedCardId === selectedCardForAction.id
-                    ? 'bg-emerald-600 text-white cursor-pointer shadow-md'
-                    : player.energy >= 1
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-md'
+                    : player.energy >= 1 || player.bankedCardId
                     ? 'bg-stone-800 hover:bg-stone-700 text-stone-200 cursor-pointer'
                     : 'bg-stone-800 text-stone-600 cursor-not-allowed'
                 }`}
+                title={
+                  player.bankedCardId === selectedCardForAction.id
+                    ? 'Card is banked for next round (1⚡ used). Click to unbank and refund 1⚡.'
+                    : player.bankedCardId
+                    ? 'Switch banked card (already spent 1⚡)'
+                    : player.energy >= 1
+                    ? 'Bank this card for next round (costs 1⚡)'
+                    : 'Need 1 Energy to bank a card'
+                }
               >
-                {player.bankedCardId === selectedCardForAction.id ? '✓ Banked' : 'Bank for Next Round (1⚡)'}
+                {player.bankedCardId === selectedCardForAction.id
+                  ? '✓ Banked (Uses 1⚡ - Click to Unbank)'
+                  : player.bankedCardId
+                  ? 'Switch Banked Card'
+                  : 'Bank for Next Round (1⚡)'}
               </button>
 
               <button
@@ -905,19 +935,34 @@ export const TableBoard: React.FC<TableBoardProps> = ({
           {/* Player Energy Crystals */}
           <div className="flex items-center gap-2">
             <span className="text-stone-300 font-bold">Energy:</span>
+            <span className="text-xs font-mono font-black text-white">{player.energy}/3</span>
+            {player.bankedCardId && (
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 shadow-sm flex items-center gap-1"
+                title="1 Energy is currently reserved to bank 1 card into next round"
+              >
+                ⚡ 1 Banked
+              </span>
+            )}
             <div className="flex items-center gap-1.5">
-              {[...Array(player.maxEnergy || 3)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-5 h-5 rounded-full border shadow-md transition-all flex items-center justify-center ${
-                    i < player.energy
-                      ? 'bg-blue-500 border-blue-300 text-white shadow-blue-500/60 scale-105'
-                      : 'bg-stone-800 border-stone-700 opacity-40'
-                  }`}
-                >
-                  <span className="text-[10px] font-bold">⚡</span>
-                </div>
-              ))}
+              {[...Array(player.maxEnergy || 3)].map((_, i) => {
+                const isBankedSlot = Boolean(player.bankedCardId) && i === player.energy;
+                return (
+                  <div
+                    key={i}
+                    className={`w-5 h-5 rounded-full border shadow-md transition-all flex items-center justify-center ${
+                      i < player.energy
+                        ? 'bg-blue-500 border-blue-300 text-white shadow-blue-500/60 scale-105'
+                        : isBankedSlot
+                        ? 'bg-emerald-700 border-emerald-400 text-emerald-200 shadow-emerald-500/40 ring-1 ring-emerald-400/50 scale-105'
+                        : 'bg-stone-800 border-stone-700 opacity-40'
+                    }`}
+                    title={isBankedSlot ? '1 Energy reserved for banked card' : undefined}
+                  >
+                    <span className="text-[10px] font-bold">⚡</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1141,7 +1186,9 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 const isSelected = selectedCardForAction?.id === card.id;
                 const isBanked = player.bankedCardId === card.id;
                 const energyCost = getCardEnergyCost(card);
-                const hasEnoughEnergy = player.energy >= energyCost;
+                // If this card is currently banked, playing it frees its 1 reserved energy
+                const effectiveEnergy = isBanked ? player.energy + 1 : player.energy;
+                const hasEnoughEnergy = effectiveEnergy >= energyCost;
 
                 // Card is same suit as an already-played action card, but is NOT the fighter's suit:
                 const isSameSuitAsPlayedNonAffinity =
@@ -1151,18 +1198,18 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 const canSummonMinionWithAce =
                   card.rank === 1 &&
                   !card.isJoker &&
-                  player.energy >= 1 &&
+                  effectiveEnergy >= 1 &&
                   (!player.minion || player.minion.maxHp === 1);
 
                 // Equipment check (numbered 2-10 cards matching minion suit)
-                const canEquipMinion = canEquipToMinion(card, player.minion, player.energy).allowed;
+                const canEquipMinion = canEquipToMinion(card, player.minion, effectiveEnergy).allowed;
 
                 // Action play check
                 const canPlayAsAction =
                   hasEnoughEnergy && (!isSameSuitAsPlayedNonAffinity || card.isJoker || card.suit === affinity);
 
-                // Can bank check (requires 1 Energy, or is already banked)
-                const canBank = player.energy >= 1 || isBanked;
+                // Can bank check (requires 1 Energy, or is already banked, or switching from another banked card)
+                const canBank = player.energy >= 1 || Boolean(player.bankedCardId);
 
                 // A card is active and interactable if it can be played as an action, summoned as minion, equipped, or banked
                 const isCardActive =
@@ -1174,7 +1221,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
                 let customBadge: string | undefined = undefined;
                 if (isBanked) {
-                  customBadge = 'BANKED ⚡';
+                  customBadge = 'BANKED (1⚡)';
                 } else if (isSameSuitAsPlayedNonAffinity && !canEquipMinion && !canSummonMinionWithAce) {
                   customBadge = 'SUIT PLAYED';
                 } else if (!hasEnoughEnergy && !canSummonMinionWithAce && !canEquipMinion) {

@@ -620,7 +620,15 @@ export default function App() {
             }
           },
           cardId => {
-            aiState.bankedCardId = cardId;
+            if (aiState.bankedCardId === cardId) {
+              aiState.bankedCardId = null;
+              aiState.energy = Math.min(3, aiState.energy + 1);
+            } else if (aiState.bankedCardId) {
+              aiState.bankedCardId = cardId;
+            } else if (aiState.energy >= 1) {
+              aiState.bankedCardId = cardId;
+              aiState.energy -= 1;
+            }
           },
           () => {
             setIsAiThinking(false);
@@ -660,8 +668,14 @@ export default function App() {
 
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
-      const cost = getCardEnergyCost(card);
 
+      // If this card was banked, unbank it and free its 1 reserved energy
+      if (player.bankedCardId === card.id) {
+        player.bankedCardId = null;
+        player.energy += 1;
+      }
+
+      const cost = getCardEnergyCost(card);
       if (player.energy < cost) return prev;
 
       // Remove from hand and deduct energy
@@ -708,6 +722,12 @@ export default function App() {
       if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') return prev;
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
+
+      // If this card was banked, unbank and free its 1 energy
+      if (player.bankedCardId === card.id) {
+        player.bankedCardId = null;
+        player.energy += 1;
+      }
       if (player.energy < 1 || player.minion) return prev;
 
       player.hand = player.hand.filter(c => c.id !== card.id);
@@ -730,6 +750,12 @@ export default function App() {
       if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') return prev;
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
+
+      // If this card was banked, unbank and free its 1 energy
+      if (player.bankedCardId === card.id) {
+        player.bankedCardId = null;
+        player.energy += 1;
+      }
       if (player.energy < 1 || !player.minion || player.minion.maxHp >= 2) return prev;
 
       player.hand = player.hand.filter(c => c.id !== card.id);
@@ -749,6 +775,12 @@ export default function App() {
       if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') return prev;
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
+
+      // If this card was banked, unbank and free its 1 energy
+      if (player.bankedCardId === card.id) {
+        player.bankedCardId = null;
+        player.energy += 1;
+      }
       if (!player.minion || player.energy < 2 || isFaceCard(card.rank) || card.isJoker) return prev;
 
       player.hand = player.hand.filter(c => c.id !== card.id);
@@ -772,10 +804,24 @@ export default function App() {
       if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') return prev;
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
+
       if (player.bankedCardId === cardId) {
+        // Toggle OFF (unbank): refund the 1 energy
         player.bankedCardId = null;
+        player.energy = Math.min(3, player.energy + 1);
+        sounds.playCardRotate();
       } else {
-        player.bankedCardId = cardId;
+        // Toggle ON: If already banking another card, switch without extra energy cost
+        if (player.bankedCardId) {
+          player.bankedCardId = cardId;
+          sounds.playCardPlace();
+        } else {
+          // First time banking this round requires and uses 1 energy
+          if (player.energy < 1) return prev;
+          player.bankedCardId = cardId;
+          player.energy -= 1;
+          sounds.playCardPlace();
+        }
       }
       broadcastGameState(next);
       return next;
@@ -1210,6 +1256,10 @@ export default function App() {
             setGameState(prev => {
               const next: GameState = JSON.parse(JSON.stringify(prev));
               const player = next.players[localPlayerIndex];
+              if (player.bankedCardId === pendingDiamondCard.id) {
+                player.bankedCardId = null;
+                player.energy += 1;
+              }
               const cost = getCardEnergyCost(pendingDiamondCard);
               if (player.energy < cost) return prev;
 
@@ -1257,6 +1307,10 @@ export default function App() {
             setGameState(prev => {
               const next: GameState = JSON.parse(JSON.stringify(prev));
               const player = next.players[localPlayerIndex];
+              if (player.bankedCardId === pendingClubCard.id) {
+                player.bankedCardId = null;
+                player.energy += 1;
+              }
               if (player.energy < cost) return prev;
 
               player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
@@ -1294,10 +1348,20 @@ export default function App() {
             setGameState(prev => {
               const next: GameState = JSON.parse(JSON.stringify(prev));
               const player = next.players[localPlayerIndex];
+              const opp = next.players[localPlayerIndex === 0 ? 1 : 0];
+              if (player.bankedCardId === pendingClubCard.id) {
+                player.bankedCardId = null;
+                player.energy += 1;
+              }
               const cost = getCardEnergyCost(pendingClubCard);
               if (player.energy < cost) return prev;
               player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
               player.energy -= cost;
+
+              if (targetCardId && opp.bankedCardId === targetCardId) {
+                opp.bankedCardId = null;
+                opp.energy = Math.min(3, opp.energy + 1);
+              }
 
               player.playedActions.push({
                 id: `act_jack_${Date.now()}`,
@@ -1324,10 +1388,20 @@ export default function App() {
             setGameState(prev => {
               const next: GameState = JSON.parse(JSON.stringify(prev));
               const player = next.players[localPlayerIndex];
+              const opp = next.players[localPlayerIndex === 0 ? 1 : 0];
+              if (player.bankedCardId === pendingClubCard.id) {
+                player.bankedCardId = null;
+                player.energy += 1;
+              }
               const cost = getCardEnergyCost(pendingClubCard);
               if (player.energy < cost) return prev;
               player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
               player.energy -= cost;
+
+              if (opp.bankedCardId === targetCardId) {
+                opp.bankedCardId = null;
+                opp.energy = Math.min(3, opp.energy + 1);
+              }
 
               player.playedActions.push({
                 id: `act_queen_${Date.now()}`,
@@ -1356,9 +1430,16 @@ export default function App() {
               const player = next.players[localPlayerIndex];
               const opp = next.players[localPlayerIndex === 0 ? 1 : 0];
 
+              if (player.bankedCardId === pendingClubCard.id) {
+                player.bankedCardId = null;
+                player.energy += 1;
+              }
+
               if (stolenCardId) {
-                // "The King of Clubs costs 3 Energy total to use, allowing you to inspect the opponent's hand,
-                // then choose to steal 1 chosen card... and you play that stolen card this round."
+                if (opp.bankedCardId === stolenCardId) {
+                  opp.bankedCardId = null;
+                  opp.energy = Math.min(3, opp.energy + 1);
+                }
                 const cIdx = opp.hand.findIndex(c => c.id === stolenCardId);
                 if (cIdx >= 0) {
                   const stolenCard = opp.hand.splice(cIdx, 1)[0];
@@ -1367,7 +1448,7 @@ export default function App() {
                     id: `stolen_play_${Date.now()}`,
                     card: stolenCard,
                     orientation: 'horizontal',
-                    energyCost: 0, // covered by King's 3 energy
+                    energyCost: 0,
                     basePoints: basePts,
                     boostedPoints: 0,
                     debuffedPoints: 0,
@@ -1378,7 +1459,6 @@ export default function App() {
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= 3;
               } else {
-                // Pass steal: costs only 1 energy
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= 1;
                 player.discardPile.push(pendingClubCard);
