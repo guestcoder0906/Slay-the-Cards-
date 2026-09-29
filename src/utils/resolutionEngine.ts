@@ -44,7 +44,7 @@ export function resolveCombatRound(currentState: GameState): {
       if (action.card.suit === 'clubs' && !action.isJokerAction) {
         const points = action.finalPoints;
 
-        // Club action debuff (targeted or general debuff)
+        // Club action debuff or equipment shatter (only when played as debuff, not Jack/Queen disruption)
         if (!action.clubSpecial) {
           let targetAction = action.targetActionId
             ? target.playedActions.find(a => a.id === action.targetActionId)
@@ -75,24 +75,24 @@ export function resolveCombatRound(currentState: GameState): {
               amount: debuffAmt,
             });
           }
-        }
 
-        // Equipment destruction check
-        if (target.minion?.equippedPermanent) {
-          const eqTier = target.minion.equippedPermanent.tierPoints;
-          if (points >= eqTier) {
-            const destroyedCard = target.minion.equippedPermanent.card;
-            target.minion.equippedPermanent = undefined;
-            target.discardPile.push(destroyedCard);
+          // Equipment destruction check
+          if (target.minion?.equippedPermanent) {
+            const eqTier = target.minion.equippedPermanent.tierPoints;
+            if (points >= eqTier) {
+              const destroyedCard = target.minion.equippedPermanent.card;
+              target.minion.equippedPermanent = undefined;
+              target.discardPile.push(destroyedCard);
 
-            logs.push({
-              id: `club_destroy_eq_${action.id}`,
-              phase: 'clubs',
-              title: `${source.name} Shattered Equipment!`,
-              description: `${action.card.name} (${points} pts) destroyed ${target.name}'s equipped ${destroyedCard.name} (Tier ${eqTier})!`,
-              sourcePlayerId: source.id,
-              targetPlayerId: target.id,
-            });
+              logs.push({
+                id: `club_destroy_eq_${action.id}`,
+                phase: 'clubs',
+                title: `${source.name} Shattered Equipment!`,
+                description: `${action.card.name} (${points} pts) destroyed ${target.name}'s equipped ${destroyedCard.name} (Tier ${eqTier})!`,
+                sourcePlayerId: source.id,
+                targetPlayerId: target.id,
+              });
+            }
           }
         }
 

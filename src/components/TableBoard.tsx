@@ -86,6 +86,13 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   const [selectedCardForAction, setSelectedCardForAction] = useState<Card | null>(null);
   const [dragOverZone, setDragOverZone] = useState<'action' | 'minion' | 'equipment' | null>(null);
 
+  // Auto-deselect if card was discarded or removed from hand
+  React.useEffect(() => {
+    if (selectedCardForAction && !player.hand.some(c => c.id === selectedCardForAction.id)) {
+      setSelectedCardForAction(null);
+    }
+  }, [player.hand, selectedCardForAction]);
+
   // Turn logic
   const isPlayerSecond = gameState.roundInitiativeSecondPlayerIndex === localPlayerIndex;
   const isMyTurn =
@@ -660,6 +667,10 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                       customBadge={
                         action.heartDeclaration
                           ? action.heartDeclaration.toUpperCase()
+                          : action.clubSpecial?.type === 'jack' || action.clubSpecial?.type === 'queen'
+                          ? 'DISCARD'
+                          : action.clubSpecial?.type === 'king'
+                          ? 'HEIST'
                           : `${action.finalPoints} PTS`
                       }
                     />
@@ -1214,6 +1225,10 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                       customBadge={
                         action.heartDeclaration
                           ? action.heartDeclaration.toUpperCase()
+                          : action.clubSpecial?.type === 'jack' || action.clubSpecial?.type === 'queen'
+                          ? 'DISCARD'
+                          : action.clubSpecial?.type === 'king'
+                          ? 'HEIST'
                           : `${action.finalPoints} PTS`
                       }
                     />

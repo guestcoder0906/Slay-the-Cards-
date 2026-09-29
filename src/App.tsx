@@ -365,10 +365,10 @@ export default function App() {
           card: faceClub,
           orientation: 'horizontal',
           energyCost: cost,
-          basePoints: 4,
+          basePoints: 0,
           boostedPoints: 0,
           debuffedPoints: 0,
-          finalPoints: 4,
+          finalPoints: 0,
           clubSpecial: { type: 'jack' },
         });
         setPreRoundAnnouncement(`⚡ Pre-Round Strike! Strategic AI played Jack of Clubs and forced you to discard ${discarded.name}!`);
@@ -387,10 +387,10 @@ export default function App() {
           card: faceClub,
           orientation: 'horizontal',
           energyCost: cost,
-          basePoints: 4,
+          basePoints: 0,
           boostedPoints: 0,
           debuffedPoints: 0,
-          finalPoints: 4,
+          finalPoints: 0,
           clubSpecial: { type: 'queen', targetCardId: target.id },
         });
         setPreRoundAnnouncement(`⚡ Pre-Round Strike! Strategic AI played Queen of Clubs and discarded your ${target.name}!`);
@@ -1557,16 +1557,15 @@ export default function App() {
                 opp.energy = Math.min(3, opp.energy + 1);
               }
 
-              const clubPts = getUniversalPoints(pendingClubCard);
               player.playedActions.push({
                 id: `act_jack_${Date.now()}`,
                 card: pendingClubCard,
                 orientation: 'horizontal',
                 energyCost: cost,
-                basePoints: clubPts,
+                basePoints: 0,
                 boostedPoints: 0,
                 debuffedPoints: 0,
-                finalPoints: clubPts,
+                finalPoints: 0,
                 clubSpecial: {
                   type: 'jack',
                   targetCardId,
@@ -1614,16 +1613,15 @@ export default function App() {
                 opp.energy = Math.min(3, opp.energy + 1);
               }
 
-              const clubPts = getUniversalPoints(pendingClubCard);
               player.playedActions.push({
                 id: `act_queen_${Date.now()}`,
                 card: pendingClubCard,
                 orientation: 'horizontal',
                 energyCost: cost,
-                basePoints: clubPts,
+                basePoints: 0,
                 boostedPoints: 0,
                 debuffedPoints: 0,
-                finalPoints: clubPts,
+                finalPoints: 0,
                 clubSpecial: {
                   type: 'queen',
                   targetCardId,
