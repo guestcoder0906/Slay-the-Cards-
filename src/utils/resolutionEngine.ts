@@ -1,0 +1,421 @@
+import { CombatLogStep, GameState, PlayerState, Card } from '../types/game';
+import { getUniversalPoints, shuffleDeck } from './cardUtils';
+
+export function resolveCombatRound(currentState: GameState): {
+  updatedState: GameState;
+  logs: CombatLogStep[];
+} {
+  // Clone state
+  const state: GameState = JSON.parse(JSON.stringify(currentState));
+  const logs: CombatLogStep[] = [];
+  const [p1, p2] = state.players;
+
+  // Track Joker effects
+  const p1PlayedJoker = p1.playedActions.some(a => a.isJokerAction);
+  const p2PlayedJoker = p2.playedActions.some(a => a.isJokerAction);
+
+  if (p1PlayedJoker) {
+    logs.push({
+      id: `joker_p1_${Date.now()}`,
+      phase: 'clubs',
+      title: `${p1.name} Played Joker!`,
+      description: `The Joker casts an aura of stillness! ${p2.name} cannot attack this round.`,
+      sourcePlayerId: p1.id,
+    });
+  }
+  if (p2PlayedJoker) {
+    logs.push({
+      id: `joker_p2_${Date.now()}`,
+      phase: 'clubs',
+      title: `${p2.name} Played Joker!`,
+      description: `The Joker casts an aura of stillness! ${p1.name} cannot attack this round.`,
+      sourcePlayerId: p2.id,
+    });
+  }
+
+  // -------------------------------------------------------------
+  // STEP 1: CLUBS DISRUPTIONS & HAND CONTROL
+  // -------------------------------------------------------------
+  [
+    { source: p1, target: p2 },
+    { source: p2, target: p1 },
+  ].forEach(({ source, target }) => {
+    source.playedActions.forEach(action => {
+      if (action.card.suit === 'clubs' && !action.isJokerAction) {
+        const points = action.finalPoints;
+
+        // Club action debuff (targeted or general debuff)
+        if (!action.clubSpecial) {
+          let targetAction = action.targetActionId
+            ? target.playedActions.find(a => a.id === action.targetActionId)
+            : undefined;
+
+          // If no specific target was set, or target already reduced to 0, target highest eligible action
+          if (!targetAction || targetAction.finalPoints <= 0) {
+            const eligible = target.playedActions
+              .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
+              .sort((a, b) => b.finalPoints - a.finalPoints);
+            if (eligible.length > 0) {
+              targetAction = eligible[0];
+            }
+          }
+
+          if (targetAction && targetAction.heartDeclaration !== 'heal' && targetAction.finalPoints > 0) {
+            const debuffAmt = Math.min(targetAction.finalPoints, points);
+            targetAction.debuffedPoints += debuffAmt;
+            targetAction.finalPoints = Math.max(0, targetAction.finalPoints - debuffAmt);
+
+            logs.push({
+              id: `club_debuff_${action.id}`,
+              phase: 'clubs',
+              title: `${source.name}'s Club Debuff`,
+              description: `${action.card.name} nullified ${debuffAmt} points from ${target.name}'s ${targetAction.card.name}!`,
+              sourcePlayerId: source.id,
+              targetPlayerId: target.id,
+              amount: debuffAmt,
+            });
+          }
+        }
+
+        // Equipment destruction check
+        if (target.minion?.equippedPermanent) {
+          const eqTier = target.minion.equippedPermanent.tierPoints;
+          if (points >= eqTier) {
+            const destroyedCard = target.minion.equippedPermanent.card;
+            target.minion.equippedPermanent = undefined;
+            target.discardPile.push(destroyedCard);
+
+            logs.push({
+              id: `club_destroy_eq_${action.id}`,
+              phase: 'clubs',
+              title: `${source.name} Shattered Equipment!`,
+              description: `${action.card.name} (${points} pts) destroyed ${target.name}'s equipped ${destroyedCard.name} (Tier ${eqTier})!`,
+              sourcePlayerId: source.id,
+              targetPlayerId: target.id,
+            });
+          }
+        }
+
+        // Jack of clubs: chosen discard (inspect hand & discard chosen card)
+        if (action.clubSpecial?.type === 'jack' && target.hand.length > 0) {
+          let discarded: Card | undefined = undefined;
+          if (action.clubSpecial.targetCardId) {
+            const cIdx = target.hand.findIndex(c => c.id === action.clubSpecial?.targetCardId);
+            if (cIdx >= 0) {
+              discarded = target.hand.splice(cIdx, 1)[0];
+            }
+          }
+          if (!discarded && target.hand.length > 0) {
+            const randIdx = Math.floor(Math.random() * target.hand.length);
+            discarded = target.hand.splice(randIdx, 1)[0];
+          }
+
+          if (discarded) {
+            target.discardPile.push(discarded);
+            logs.push({
+              id: `jack_discard_${action.id}`,
+              phase: 'clubs',
+              title: `${source.name}'s Jack of Clubs Ambush!`,
+              description: `${source.name} inspected ${target.name}'s hand and forced them to discard ${discarded.name}!`,
+              sourcePlayerId: source.id,
+              targetPlayerId: target.id,
+            });
+          }
+        }
+
+        // Queen of clubs: targeted discard
+        if (action.clubSpecial?.type === 'queen' && target.hand.length > 0) {
+          let discarded: Card | undefined = undefined;
+          if (action.clubSpecial.targetCardId) {
+            const cIdx = target.hand.findIndex(c => c.id === action.clubSpecial?.targetCardId);
+            if (cIdx >= 0) {
+              discarded = target.hand.splice(cIdx, 1)[0];
+            }
+          }
+          if (!discarded && target.hand.length > 0) {
+            const randIdx = Math.floor(Math.random() * target.hand.length);
+            discarded = target.hand.splice(randIdx, 1)[0];
+          }
+
+          if (discarded) {
+            target.discardPile.push(discarded);
+            logs.push({
+              id: `queen_discard_${action.id}`,
+              phase: 'clubs',
+              title: `${source.name}'s Queen of Clubs Mind Vision!`,
+              description: `${source.name} inspected ${target.name}'s hand and forced them to discard ${discarded.name}!`,
+              sourcePlayerId: source.id,
+              targetPlayerId: target.id,
+            });
+          }
+        }
+      }
+    });
+  });
+
+  // -------------------------------------------------------------
+  // STEP 2: DEFENSE CALCULATION (PASSIVE SHIELDS & DECLARED HEART BLOCKS)
+  // -------------------------------------------------------------
+  const calculateDefense = (player: PlayerState) => {
+    let passiveShield = 0;
+    // Vertically equipped Heart on minion
+    if (player.minion?.equippedPermanent?.suit === 'hearts') {
+      passiveShield += player.minion.equippedPermanent.tierPoints;
+    }
+
+    let temporaryBlocks = 0;
+    player.playedActions.forEach(a => {
+      if (a.card.suit === 'hearts' && a.heartDeclaration === 'block') {
+        temporaryBlocks += a.finalPoints;
+      }
+    });
+
+    return { passiveShield, temporaryBlocks, total: passiveShield + temporaryBlocks };
+  };
+
+  const p1Def = calculateDefense(p1);
+  const p2Def = calculateDefense(p2);
+
+  // -------------------------------------------------------------
+  // STEP 3: ATTACK RESOLUTION & DAMAGE TO MINIONS & FIGHTERS
+  // -------------------------------------------------------------
+  const calculateTotalAttack = (attacker: PlayerState, isAttackerBlockedByJoker: boolean) => {
+    if (isAttackerBlockedByJoker) return 0;
+
+    let attackPoints = 0;
+    let hasAttack = false;
+
+    // Spades action attacks
+    attacker.playedActions.forEach(a => {
+      if (a.card.suit === 'spades' && !a.isJokerAction) {
+        attackPoints += a.finalPoints;
+        hasAttack = true;
+      }
+    });
+
+    // Vertically equipped Spade on minion gives passive attack bonus IF attacker attacks
+    if (hasAttack && attacker.minion?.equippedPermanent?.suit === 'spades') {
+      attackPoints += attacker.minion.equippedPermanent.tierPoints;
+    }
+
+    return attackPoints;
+  };
+
+  const p1IncomingAttack = calculateTotalAttack(p2, p1PlayedJoker);
+  const p2IncomingAttack = calculateTotalAttack(p1, p2PlayedJoker);
+
+  // Apply damage with Minion first, then spillover to Fighter
+  const applyDamage = (
+    defender: PlayerState,
+    incomingAttack: number,
+    defense: { passiveShield: number; temporaryBlocks: number; total: number },
+    attackerName: string
+  ) => {
+    if (incomingAttack <= 0) {
+      return;
+    }
+
+    let remainingAttack = incomingAttack;
+
+    // 1. Absorb by passive shield
+    if (defense.passiveShield > 0) {
+      const absorbed = Math.min(remainingAttack, defense.passiveShield);
+      remainingAttack -= absorbed;
+      logs.push({
+        id: `def_shield_${defender.id}_${Date.now()}`,
+        phase: 'defense',
+        title: `${defender.name}'s Permanent Shield Absorbed Damage`,
+        description: `Passive shield absorbed ${absorbed} attack points from ${attackerName}.`,
+        targetPlayerId: defender.id,
+        amount: absorbed,
+      });
+    }
+
+    // 2. Absorb by temporary Heart blocks
+    if (remainingAttack > 0 && defense.temporaryBlocks > 0) {
+      const absorbed = Math.min(remainingAttack, defense.temporaryBlocks);
+      remainingAttack -= absorbed;
+      logs.push({
+        id: `def_block_${defender.id}_${Date.now()}`,
+        phase: 'defense',
+        title: `${defender.name}'s Heart Block`,
+        description: `Declared Heart block absorbed ${absorbed} attack points from ${attackerName}.`,
+        targetPlayerId: defender.id,
+        amount: absorbed,
+      });
+    }
+
+    // 3. Damage strikes Minion first
+    if (remainingAttack > 0 && defender.minion && defender.minion.hp > 0) {
+      const minionDamage = Math.min(defender.minion.hp, remainingAttack);
+      defender.minion.hp -= minionDamage;
+      remainingAttack -= minionDamage;
+
+      logs.push({
+        id: `dmg_minion_${defender.id}_${Date.now()}`,
+        phase: 'damage',
+        title: `${defender.name}'s Minion Took ${minionDamage} Damage!`,
+        description: `The minion intercepted enemy attacks.`,
+        targetPlayerId: defender.id,
+        amount: minionDamage,
+      });
+
+      // Minion destroyed?
+      if (defender.minion.hp <= 0) {
+        defender.discardPile.push(defender.minion.aceCard);
+        if (defender.minion.boostAceCard) defender.discardPile.push(defender.minion.boostAceCard);
+        if (defender.minion.equippedPermanent) defender.discardPile.push(defender.minion.equippedPermanent.card);
+
+        logs.push({
+          id: `minion_destroyed_${defender.id}_${Date.now()}`,
+          phase: 'damage',
+          title: `${defender.name}'s Minion Destroyed!`,
+          description: `The minion fell in battle and was sent to the discard pile with all attachments.`,
+          targetPlayerId: defender.id,
+        });
+
+        defender.minion = null;
+      }
+    }
+
+    // 4. Overflow damage hits Fighter!
+    if (remainingAttack > 0 && defender.fighter && defender.fighter.hp > 0) {
+      const fighterDamage = Math.min(defender.fighter.hp, remainingAttack);
+      defender.fighter.hp -= fighterDamage;
+      remainingAttack -= fighterDamage;
+
+      logs.push({
+        id: `dmg_fighter_${defender.id}_${Date.now()}`,
+        phase: 'damage',
+        title: `${defender.name}'s Fighter Hit for ${fighterDamage} Damage!`,
+        description: `Unblocked damage spilled over to ${defender.name}'s Fighter! (Fighter HP: ${defender.fighter.hp}/${defender.fighter.maxHp})`,
+        targetPlayerId: defender.id,
+        amount: fighterDamage,
+      });
+
+      if (defender.fighter.hp <= 0) {
+        logs.push({
+          id: `fighter_slain_${defender.id}_${Date.now()}`,
+          phase: 'damage',
+          title: `${defender.name}'s Fighter Has Fallen!`,
+          description: `The champion has perished! The battle concludes.`,
+          targetPlayerId: defender.id,
+        });
+      }
+    }
+  };
+
+  applyDamage(p1, p1IncomingAttack, p1Def, p2.name);
+  applyDamage(p2, p2IncomingAttack, p2Def, p1.name);
+
+  // -------------------------------------------------------------
+  // STEP 4: DECLARED HEART HEALS RESTORE DAMAGED FIGHTERS
+  // -------------------------------------------------------------
+  [p1, p2].forEach(player => {
+    if (!player.fighter || player.fighter.hp <= 0) return;
+
+    let healAmount = 0;
+    player.playedActions.forEach(a => {
+      if (a.card.suit === 'hearts' && a.heartDeclaration === 'heal') {
+        healAmount += a.finalPoints;
+      }
+    });
+
+    if (healAmount > 0) {
+      const missingHp = player.fighter.maxHp - player.fighter.hp;
+      const actualHeal = Math.min(missingHp, healAmount);
+      player.fighter.hp += actualHeal;
+
+      logs.push({
+        id: `heal_${player.id}_${Date.now()}`,
+        phase: 'heal',
+        title: `${player.name} Restored Health!`,
+        description: `Heart Heal restored +${actualHeal} HP to Fighter (Now ${player.fighter.hp}/${player.fighter.maxHp} HP).`,
+        sourcePlayerId: player.id,
+        amount: actualHeal,
+      });
+    }
+  });
+
+  // -------------------------------------------------------------
+  // STEP 5: CLEANUP & DECK REPLENISHMENT
+  // -------------------------------------------------------------
+  [p1, p2].forEach(player => {
+    // Discard horizontal action cards
+    player.playedActions.forEach(a => {
+      player.discardPile.push(a.card);
+    });
+    player.playedActions = [];
+
+    // Hand discard / banking
+    // "Discard all unplayed cards from hand, unless you spend 1 leftover Energy to bank 1 card into the next round."
+    const bankedCard = player.bankedCardId
+      ? player.hand.find(c => c.id === player.bankedCardId)
+      : null;
+
+    const remainingToDiscard = player.hand.filter(c => c.id !== player.bankedCardId);
+    remainingToDiscard.forEach(c => {
+      player.discardPile.push(c);
+    });
+
+    // Retain only the banked card if valid
+    player.hand = bankedCard ? [bankedCard] : [];
+    player.bankedCardId = null;
+
+    // Draw up to 5 cards (or mulligan cap)
+    const targetHandSize = 5;
+    while (player.hand.length < targetHandSize) {
+      if (player.deck.length === 0) {
+        if (player.discardPile.length === 0) break; // Out of cards
+        // "Only reshuffle the discard pile back into the deck when the draw deck runs out of cards."
+        player.deck = shuffleDeck(player.discardPile);
+        player.discardPile = [];
+        logs.push({
+          id: `reshuffle_${player.id}`,
+          phase: 'cleanup',
+          title: `${player.name}'s Deck Reshuffled`,
+          description: `Discard pile was reshuffled back into the draw deck.`,
+          sourcePlayerId: player.id,
+        });
+      }
+
+      const drawn = player.deck.pop();
+      if (drawn) {
+        player.hand.push(drawn);
+      }
+    }
+
+    // Energy resets to 3
+    player.energy = 3;
+    player.isReadyForRound = false;
+  });
+
+  logs.push({
+    id: `cleanup_done_${Date.now()}`,
+    phase: 'cleanup',
+    title: 'Round Complete & Energy Reset',
+    description: 'Temporary action cards discarded, fresh hands drawn, and both players restored to 3 Energy.',
+  });
+
+  // Check Game Winner
+  if ((p1.fighter?.hp || 0) <= 0 && (p2.fighter?.hp || 0) <= 0) {
+    state.gameWinnerId = 'tie';
+    state.phase = 'game_over';
+  } else if ((p1.fighter?.hp || 0) <= 0) {
+    state.gameWinnerId = p2.id;
+    state.phase = 'game_over';
+  } else if ((p2.fighter?.hp || 0) <= 0) {
+    state.gameWinnerId = p1.id;
+    state.phase = 'game_over';
+  } else {
+    // Advance round and alternate initiative
+    state.roundNumber += 1;
+    state.roundInitiativeSecondPlayerIndex =
+      state.roundInitiativeSecondPlayerIndex === 0 ? 1 : 0;
+    state.activePlayerIndex = state.roundInitiativeSecondPlayerIndex === 0 ? 1 : 0;
+    state.phase = 'round_action';
+  }
+
+  state.combatLogs = logs;
+  return { updatedState: state, logs };
+}

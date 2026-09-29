@@ -1,0 +1,6 @@
+{
+  "name": "Slay the Cards!",
+  "description": "Tactical tabletop card combat game featuring physical clockwise card rotation, universal points, horizontal actions, vertical minion equipment, VS AI, and real-time multiplayer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
