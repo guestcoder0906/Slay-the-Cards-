@@ -196,14 +196,15 @@ export default function App() {
     });
   };
 
-  const handlePlayerPutCardToBottom = (card: Card) => {
+  const handlePlayerPutCardsToBottom = (cards: Card[]) => {
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
 
-      // Remove chosen card from fresh hand and place on the bottom of the deck
-      player.hand = player.hand.filter(c => c.id !== card.id);
-      player.deck.push(card);
+      const cardIds = new Set(cards.map(c => c.id));
+      // Remove chosen cards from fresh hand and place on the bottom of the deck
+      player.hand = player.hand.filter(c => !cardIds.has(c.id));
+      player.deck.push(...cards);
       player.mulliganCount += 1;
 
       broadcastGameState(next);
@@ -216,7 +217,7 @@ export default function App() {
       const next: GameState = JSON.parse(JSON.stringify(prev));
       next.players[localPlayerIndex].mulliganDone = true;
 
-      // If AI hasn't done mulligan, do it now: shuffle back, draw 5, put 1 card to bottom
+      // If AI hasn't done mulligan, do it now: shuffle back, draw 5, put (mulliganCount + 1) cards to bottom
       const oppIndex = localPlayerIndex === 0 ? 1 : 0;
       if (next.players[oppIndex].isAI) {
         const aiMulligan = aiPlayer.decideMulligan(next.players[oppIndex]);
@@ -226,11 +227,13 @@ export default function App() {
           ai.hand = [];
           ai.deck = shuffleDeck(ai.deck);
           ai.hand = ai.deck.splice(0, 5);
+          const countToBottom = ai.mulliganCount + 1;
           const sorted = [...ai.hand].sort((a, b) => getUniversalPoints(a) - getUniversalPoints(b));
-          const toBottom = sorted[0];
-          ai.hand = ai.hand.filter(c => c.id !== toBottom.id);
-          ai.deck.push(toBottom);
-          ai.mulliganCount = 1;
+          const toBottom = sorted.slice(0, countToBottom);
+          const toBottomIds = new Set(toBottom.map(c => c.id));
+          ai.hand = ai.hand.filter(c => !toBottomIds.has(c.id));
+          ai.deck.push(...toBottom);
+          ai.mulliganCount += 1;
         }
         next.players[oppIndex].mulliganDone = true;
       }
@@ -1172,7 +1175,7 @@ export default function App() {
           hand={gameState.players[localPlayerIndex].hand}
           mulliganCount={gameState.players[localPlayerIndex].mulliganCount}
           onMulliganReset={handlePlayerMulliganReset}
-          onPutCardToBottom={handlePlayerPutCardToBottom}
+          onPutCardsToBottom={handlePlayerPutCardsToBottom}
           onKeepHand={handlePlayerKeepHand}
         />
       )}
