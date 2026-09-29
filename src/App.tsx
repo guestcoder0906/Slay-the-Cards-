@@ -1091,6 +1091,12 @@ export default function App() {
           }
         } else if (type === 'player_joined') {
           setPlayerCount(data.players.length);
+          if (playerIdx === 0) {
+            setGameState(curr => {
+              socketService.syncGameState(curr);
+              return curr;
+            });
+          }
         } else if (type === 'game_state_synced') {
           setGameState(data.gameState);
         }

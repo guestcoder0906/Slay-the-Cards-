@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MultiplayerMode } from '../types/game';
-import { Users, Globe, Copy, Check, Radio, Share2, CheckCircle2 } from 'lucide-react';
+import { Users, Globe, Copy, Check, Radio, Share2, CheckCircle2, Zap } from 'lucide-react';
+import { socketService } from '../services/socketService';
 
 interface MultiplayerModalProps {
   currentMode: MultiplayerMode;
@@ -26,6 +27,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const isSupabase = socketService.isSupabaseConfigured();
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(roomCode);
@@ -48,8 +50,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           <div className="flex items-center gap-2">
             <Radio className="w-6 h-6 text-emerald-400" />
             <div>
-              <h3 className="text-xl font-serif font-bold text-emerald-300">Live WebSocket Multiplayer</h3>
-              <p className="text-[11px] text-stone-400">Direct real-time 1v1 card combat</p>
+              <h3 className="text-xl font-serif font-bold text-emerald-300">
+                {isSupabase ? 'Live Supabase Realtime Multiplayer' : 'Live Realtime Multiplayer'}
+              </h3>
+              <p className="text-[11px] text-stone-400">
+                {isSupabase
+                  ? 'Serverless 1v1 broadcast via Supabase Realtime (Vercel Ready)'
+                  : 'Direct real-time 1v1 card combat'}
+              </p>
             </div>
           </div>
           <button
@@ -60,7 +68,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           </button>
         </div>
 
-        {/* WebSocket Connection Status */}
+        {/* Realtime Engine Status */}
         <div className="flex items-center justify-between p-3 rounded-xl bg-stone-950 border border-stone-800 mb-4 text-xs">
           <div className="flex items-center gap-2">
             <span
@@ -69,11 +77,16 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
               }`}
             />
             <span className="text-stone-300 font-semibold">
-              {isConnected ? 'WebSocket Engine Online' : 'Connecting to Server...'}
+              {isConnected
+                ? isSupabase
+                  ? 'Supabase Realtime Live Connected'
+                  : 'WebSocket Engine Online'
+                : 'Connecting to Realtime Engine...'}
             </span>
           </div>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-            Port 3000 /ws
+          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1 font-mono font-bold">
+            <Zap className="w-3 h-3 text-emerald-400" />
+            {isSupabase ? 'Supabase Realtime' : 'Local /ws'}
           </span>
         </div>
 
