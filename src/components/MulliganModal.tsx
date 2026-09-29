@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '../types/game';
 import { CardView } from './CardView';
 import { sounds } from '../utils/audio';
-import { RotateCcw, Check, ArrowDown, Sparkles } from 'lucide-react';
+import { RotateCcw, Check, ArrowDown, Sparkles, Globe } from 'lucide-react';
 
 interface MulliganModalProps {
   hand: Card[];
@@ -10,6 +10,7 @@ interface MulliganModalProps {
   onMulliganReset: () => void;
   onPutCardsToBottom: (cards: Card[]) => void;
   onKeepHand: () => void;
+  onOpenMultiplayer?: () => void;
 }
 
 export const MulliganModal: React.FC<MulliganModalProps> = ({
@@ -18,6 +19,7 @@ export const MulliganModal: React.FC<MulliganModalProps> = ({
   onMulliganReset,
   onPutCardsToBottom,
   onKeepHand,
+  onOpenMultiplayer,
 }) => {
   const cardsNeededToBottom = mulliganCount + 1;
   const [selectedCards, setSelectedCards] = useState<Card[]>([]);
@@ -91,7 +93,7 @@ export const MulliganModal: React.FC<MulliganModalProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={onKeepHand}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-700/40 transition-all cursor-pointer active:scale-95"
@@ -104,6 +106,14 @@ export const MulliganModal: React.FC<MulliganModalProps> = ({
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold shadow-lg shadow-amber-700/40 transition-all cursor-pointer active:scale-95"
                 >
                   <RotateCcw className="w-5 h-5" /> Reset Hand & Mulligan ({cardsNeededToBottom} to bottom)
+                </button>
+              )}
+              {onOpenMultiplayer && (
+                <button
+                  onClick={onOpenMultiplayer}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-emerald-400 font-bold border border-emerald-500/40 transition-all cursor-pointer active:scale-95 text-xs"
+                >
+                  <Globe className="w-4 h-4" /> Live Multiplayer
                 </button>
               )}
             </div>

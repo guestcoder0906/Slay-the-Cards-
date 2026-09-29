@@ -1105,6 +1105,8 @@ export default function App() {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     setRoomCode(code);
     setIsHost(true);
+    const fresh = initNewGame('Player 1 (Host)', 'Player 2 (Challenger)', false);
+    setGameState(fresh);
     joinMultiplayerRoom(code, 0);
   };
 
@@ -1112,6 +1114,8 @@ export default function App() {
     const cleanCode = code.toUpperCase().trim();
     setRoomCode(cleanCode);
     setIsHost(false);
+    const freshWaiting = initNewGame('Player 1 (Host)', 'Player 2 (Challenger)', false);
+    setGameState(freshWaiting);
     joinMultiplayerRoom(cleanCode, 1);
   };
 
@@ -1131,26 +1135,7 @@ export default function App() {
           setIsConnected(true);
           setPlayerCount(data.players.length);
           if (data.gameState) {
-            setGameState(current => {
-              const incoming = data.gameState;
-              // If we already have a valid local hand in mulligan/fighter setup, protect it
-              if (
-                (current.phase === 'mulligan' || current.phase === 'fighter_setup') &&
-                current.players[playerIdx].hand.length > 0
-              ) {
-                const merged: GameState = JSON.parse(JSON.stringify(incoming));
-                merged.players[playerIdx] = {
-                  ...merged.players[playerIdx],
-                  hand: current.players[playerIdx].hand,
-                  deck: current.players[playerIdx].deck,
-                  mulliganCount: Math.max(merged.players[playerIdx].mulliganCount, current.players[playerIdx].mulliganCount),
-                  mulliganDone: current.players[playerIdx].mulliganDone || merged.players[playerIdx].mulliganDone,
-                  fighter: current.players[playerIdx].fighter || merged.players[playerIdx].fighter,
-                };
-                return merged;
-              }
-              return incoming;
-            });
+            setGameState(data.gameState);
           }
         } else if (type === 'player_joined') {
           setPlayerCount(data.players.length);
@@ -1190,15 +1175,22 @@ export default function App() {
             ) {
               const merged: GameState = JSON.parse(JSON.stringify(incoming));
 
-              // Retain local player's hand, deck, mulligan progress, and chosen fighter
-              merged.players[playerIdx] = {
-                ...merged.players[playerIdx],
-                hand: current.players[playerIdx].hand,
-                deck: current.players[playerIdx].deck,
-                mulliganCount: Math.max(merged.players[playerIdx].mulliganCount, current.players[playerIdx].mulliganCount),
-                mulliganDone: current.players[playerIdx].mulliganDone || merged.players[playerIdx].mulliganDone,
-                fighter: current.players[playerIdx].fighter || merged.players[playerIdx].fighter,
-              };
+              // If local player already made their choices or progressed in this phase, preserve them
+              const localHasInteracted =
+                current.players[playerIdx].mulliganCount > 0 ||
+                current.players[playerIdx].mulliganDone ||
+                Boolean(current.players[playerIdx].fighter);
+
+              if (localHasInteracted) {
+                merged.players[playerIdx] = {
+                  ...incoming.players[playerIdx],
+                  hand: current.players[playerIdx].hand,
+                  deck: current.players[playerIdx].deck,
+                  mulliganCount: current.players[playerIdx].mulliganCount,
+                  mulliganDone: current.players[playerIdx].mulliganDone,
+                  fighter: current.players[playerIdx].fighter,
+                };
+              }
 
               // Check if both mulligans are done -> transition to fighter_setup
               if (merged.players[0].mulliganDone && merged.players[1].mulliganDone) {
@@ -1288,7 +1280,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
       {/* Top Header / Table Rail */}
-      <header className="sticky top-0 z-40 bg-stone-900/95 backdrop-blur-md border-b border-stone-800 px-4 py-2.5 shadow-md">
+      <header className="sticky top-0 z-[60] bg-stone-900/95 backdrop-blur-md border-b border-stone-800 px-4 py-2.5 shadow-md">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
           {/* Logo & Game Title */}
           <div className="flex items-center gap-2">
@@ -1440,7 +1432,24 @@ export default function App() {
           onMulliganReset={handlePlayerMulliganReset}
           onPutCardsToBottom={handlePlayerPutCardsToBottom}
           onKeepHand={handlePlayerKeepHand}
+          onOpenMultiplayer={() => setShowMultiplayer(true)}
         />
+      )}
+
+      {/* Mulligan Waiting for Opponent in Multiplayer */}
+      {gameState.phase === 'mulligan' && gameState.players[localPlayerIndex].mulliganDone && mode === 'websocket_multiplayer' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-stone-900 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl max-w-md w-full text-center flex flex-col items-center">
+            <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+            <h3 className="text-lg font-serif font-bold text-emerald-300">
+              Hand Confirmed & Ready
+            </h3>
+            <p className="text-xs text-stone-300 mt-2">
+              Waiting for {gameState.players[localPlayerIndex === 0 ? 1 : 0]?.name || 'the opponent'} to finalize their starting hand...
+            </p>
+            <span className="text-[10px] text-stone-500 mt-4">Fighter setup will begin as soon as both players are ready.</span>
+          </div>
+        </div>
       )}
 
       {/* Fighter Setup Modal */}
@@ -1449,6 +1458,22 @@ export default function App() {
           hand={gameState.players[localPlayerIndex].hand}
           onSelectFighter={handleSelectFighter}
         />
+      )}
+
+      {/* Fighter Setup Waiting for Opponent in Multiplayer */}
+      {gameState.phase === 'fighter_setup' && gameState.players[localPlayerIndex].fighter && mode === 'websocket_multiplayer' && !gameState.players[localPlayerIndex === 0 ? 1 : 0]?.fighter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-stone-900 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl max-w-md w-full text-center flex flex-col items-center">
+            <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+            <h3 className="text-lg font-serif font-bold text-emerald-300">
+              Fighter Selected
+            </h3>
+            <p className="text-xs text-stone-300 mt-2">
+              You chose <strong className="text-amber-300">{gameState.players[localPlayerIndex].fighter?.card.name}</strong> as your Champion Fighter! Waiting for {gameState.players[localPlayerIndex === 0 ? 1 : 0]?.name || 'the opponent'} to select their Fighter...
+            </p>
+            <span className="text-[10px] text-stone-500 mt-4">Round 1 initiative will be calculated immediately after.</span>
+          </div>
+        </div>
       )}
 
       {/* Heart Choice (Block vs Heal) */}
