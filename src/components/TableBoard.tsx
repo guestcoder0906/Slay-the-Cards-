@@ -506,9 +506,9 @@ export const TableBoard: React.FC<TableBoardProps> = ({
         </div>
 
         {/* Opponent Table: Fighter, Minion, Played Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 pt-3 items-stretch">
           {/* Opponent Fighter Slot */}
-          <div className="flex flex-col items-center p-3 rounded-xl bg-stone-950/60 border border-stone-800/80">
+          <div className="flex flex-col items-center p-3 rounded-xl bg-stone-950/60 border border-stone-800/80 justify-center">
             <div className="flex items-center gap-1.5 text-xs text-stone-400 font-bold mb-2">
               <Crown className="w-3.5 h-3.5 text-amber-400" />
               <span>Opponent Fighter</span>
@@ -657,9 +657,9 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                   : 'No actions committed yet this round'}
               </div>
             ) : (
-              <div className="flex flex-wrap items-center justify-center gap-2 my-auto">
+              <div className="flex flex-wrap items-center justify-center gap-2 my-auto overflow-x-auto max-w-full p-1 scrollbar-thin">
                 {opponent.playedActions.map(action => (
-                  <div key={action.id} className="relative group">
+                  <div key={action.id} className="relative group shrink-0">
                     <CardView
                       card={action.card}
                       orientation="horizontal"
@@ -1055,9 +1055,9 @@ export const TableBoard: React.FC<TableBoardProps> = ({
         </div>
 
         {/* Player Table: Fighter, Minion, Played Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 pt-3 items-stretch">
           {/* Player Fighter Slot */}
-          <div className="flex flex-col items-center p-3 rounded-xl bg-stone-950/60 border border-stone-800/80">
+          <div className="flex flex-col items-center p-3 rounded-xl bg-stone-950/60 border border-stone-800/80 justify-center">
             <div className="flex items-center gap-1.5 text-xs text-stone-400 font-bold mb-2">
               <Crown className="w-3.5 h-3.5 text-amber-400" />
               <span>Your Champion Fighter</span>
@@ -1215,9 +1215,9 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 {isMyTurn ? 'No actions placed yet. Drag cards or tap below to play!' : 'Waiting for your turn...'}
               </div>
             ) : (
-              <div className="flex flex-wrap items-center justify-center gap-2 my-auto">
+              <div className="flex flex-wrap items-center justify-center gap-2 my-auto overflow-x-auto max-w-full p-1 scrollbar-thin">
                 {player.playedActions.map(action => (
-                  <div key={action.id} className="relative group">
+                  <div key={action.id} className="relative group shrink-0">
                     <CardView
                       card={action.card}
                       orientation="horizontal"
@@ -1241,7 +1241,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
         {/* Player Hand Tray */}
         <div className="mt-4 pt-3 border-t border-stone-800/80">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-amber-400">
                 Your Private Hand ({player.hand.length} cards)
@@ -1258,13 +1258,13 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             </div>
             <span className="text-[11px] text-stone-400">
               {isMyTurn
-                ? 'Drag cards to drop zones or tap. Greyed out cards cannot be played (non-fighter suit already played).'
+                ? 'Drag cards to drop zones or tap cards to play'
                 : 'Cards will unlock when your turn starts'}
             </span>
           </div>
 
           <div
-            className={`flex flex-wrap items-center justify-center gap-3 min-h-[150px] p-2 rounded-2xl border transition-all ${
+            className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 min-h-[140px] p-2 sm:p-3 rounded-2xl border overflow-x-auto scrollbar-thin transition-all ${
               isMyTurn
                 ? 'bg-stone-950/60 border-stone-800 ring-1 ring-emerald-500/20'
                 : 'bg-stone-950/30 border-stone-800/50 opacity-80'

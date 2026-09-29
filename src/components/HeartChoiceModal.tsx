@@ -14,8 +14,8 @@ export const HeartChoiceModal: React.FC<HeartChoiceModalProps> = ({ card, onDecl
   const points = getUniversalPoints(card);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md bg-stone-900 border-2 border-rose-600/80 rounded-2xl p-6 shadow-2xl text-stone-100 flex flex-col items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+      <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto scrollbar-thin bg-stone-900 border-2 border-rose-600/80 rounded-2xl p-4 sm:p-6 shadow-2xl text-stone-100 flex flex-col items-center">
         <div className="flex items-center gap-2 mb-2 text-rose-500">
           <Heart className="w-6 h-6 fill-rose-500" />
           <h3 className="text-xl font-serif font-bold text-rose-400">Declare Heart Effect</h3>

@@ -1,1 +1,60 @@
 @import "tailwindcss";
+
+@layer base {
+  html, body, #root {
+    min-height: 100%;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pan-x;
+    background-color: #0c0a09;
+    color: #f5f5f4;
+  }
+
+  /* Universal Custom Scrollbar across all browsers */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #d97706 #1c1917;
+  }
+
+  /* WebKit Scrollbar Styling (Chrome, Safari, Edge, Mobile WebKit) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1c1917;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #d97706;
+    border-radius: 4px;
+    border: 1px solid #78350f;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #f59e0b;
+  }
+}
+
+/* Custom scrollbar utility class */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d97706 #1c1917;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #1c1917;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d97706;
+  border-radius: 3px;
+}

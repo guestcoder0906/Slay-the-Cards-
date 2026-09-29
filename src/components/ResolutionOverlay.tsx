@@ -76,8 +76,8 @@ export const ResolutionOverlay: React.FC<ResolutionOverlayProps> = ({ logs, onCo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="relative w-full max-w-xl bg-stone-900 border-2 border-amber-600/80 rounded-3xl p-6 shadow-2xl text-stone-100 flex flex-col items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4">
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto scrollbar-thin bg-stone-900 border-2 border-amber-600/80 rounded-3xl p-4 sm:p-6 shadow-2xl text-stone-100 flex flex-col items-center">
         {/* Phase Timeline Header */}
         <div className="w-full flex items-center justify-between pb-3 border-b border-stone-800 mb-4">
           <div className="flex items-center gap-2">

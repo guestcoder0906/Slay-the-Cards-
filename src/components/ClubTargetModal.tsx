@@ -42,8 +42,8 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
     points >= opponentState.minion.equippedPermanent.tierPoints;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-xl bg-stone-900 border-2 border-emerald-600/80 rounded-3xl p-6 shadow-2xl text-stone-100 flex flex-col items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-3 sm:p-4">
+      <div className="relative w-full max-w-xl max-h-[92vh] overflow-y-auto scrollbar-thin bg-stone-900 border-2 border-emerald-600/80 rounded-3xl p-4 sm:p-6 shadow-2xl text-stone-100 flex flex-col items-center">
         {/* Header */}
         <div className="flex items-center gap-2 mb-2">
           <Scissors className="w-7 h-7 text-emerald-400" />

@@ -1398,7 +1398,7 @@ export default function App() {
       )}
 
       {/* Main Table Felt Arena */}
-      <main className="flex-1 p-3 sm:p-6 overflow-x-hidden flex flex-col justify-center">
+      <main className="flex-1 w-full max-w-6xl mx-auto p-2 sm:p-6 overflow-x-hidden flex flex-col justify-start">
         <TableBoard
           gameState={gameState}
           localPlayerIndex={localPlayerIndex}

@@ -34,8 +34,8 @@ export const PreRoundClubModal: React.FC<PreRoundClubModalProps> = ({
   const hasEnergy = player.energy >= energyCost;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-stone-900 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl text-stone-100 flex flex-col items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto scrollbar-thin bg-stone-900 border-2 border-emerald-500 rounded-3xl p-4 sm:p-6 shadow-2xl text-stone-100 flex flex-col items-center">
         {/* Glow Header */}
         <div className="flex items-center gap-2 mb-2">
           <div className="p-2 rounded-xl bg-emerald-950 border border-emerald-500/50 text-emerald-400">

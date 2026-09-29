@@ -54,7 +54,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
         </div>
 
         {/* Content Area */}
-        <div className="p-6 overflow-y-auto space-y-4 text-sm text-stone-300 leading-relaxed">
+        <div className="p-4 sm:p-6 overflow-y-auto scrollbar-thin space-y-4 text-sm text-stone-300 leading-relaxed">
           {tab === 'overview' && (
             <div className="space-y-4">
               <h3 className="text-lg font-serif font-bold text-amber-400">Deck & Fighter Setup</h3>

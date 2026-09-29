@@ -22,8 +22,8 @@ export const DiamondTargetModal: React.FC<DiamondTargetModalProps> = ({
   const eligibleActions = playedActions.filter(a => a.heartDeclaration !== 'heal');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md bg-stone-900 border-2 border-amber-500/80 rounded-2xl p-6 shadow-2xl text-stone-100 flex flex-col items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+      <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto scrollbar-thin bg-stone-900 border-2 border-amber-500/80 rounded-2xl p-4 sm:p-6 shadow-2xl text-stone-100 flex flex-col items-center">
         <Zap className="w-8 h-8 text-amber-400 mb-1" />
         <h3 className="text-xl font-serif font-bold text-amber-400">Action Overcharge</h3>
         <p className="text-xs text-stone-300 text-center mb-4">
