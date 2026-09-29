@@ -402,17 +402,43 @@ export default function App() {
         const stolen = sorted[0];
         const sIdx = opp.hand.findIndex(c => c.id === stolen.id);
         if (sIdx >= 0) opp.hand.splice(sIdx, 1);
-        ai.playedActions.push({
-          id: `ai_stolen_${Date.now()}`,
-          card: stolen,
-          orientation: 'horizontal',
-          energyCost: 0,
-          basePoints: getUniversalPoints(stolen),
-          boostedPoints: 0,
-          debuffedPoints: 0,
-          finalPoints: getUniversalPoints(stolen),
-          heartDeclaration: stolen.suit === 'hearts' ? 'block' : undefined,
-        });
+        if (opp.bankedCardId === stolen.id) {
+          opp.bankedCardId = null;
+          opp.energy = Math.min(3, opp.energy + 1);
+        }
+
+        // If stolen card is an Ace and AI lacks a minion (or can boost), play as minion!
+        if (stolen.rank === 1 && (!ai.minion || ai.minion.maxHp < 2)) {
+          if (!ai.minion) {
+            ai.minion = {
+              id: `ai_minion_${Date.now()}`,
+              aceCard: stolen,
+              hp: 1,
+              maxHp: 1,
+            };
+            sounds.playBlock();
+          } else {
+            ai.minion.boostAceCard = stolen;
+            ai.minion.hp = 2;
+            ai.minion.maxHp = 2;
+            sounds.playHeal();
+          }
+          setPreRoundAnnouncement(`⚡ Pre-Round Grand Heist! Strategic AI played King of Clubs, stole your ${stolen.name}, and summoned it as a Minion!`);
+        } else {
+          ai.playedActions.push({
+            id: `ai_stolen_${Date.now()}`,
+            card: stolen,
+            orientation: 'horizontal',
+            energyCost: 0,
+            basePoints: getUniversalPoints(stolen),
+            boostedPoints: 0,
+            debuffedPoints: 0,
+            finalPoints: getUniversalPoints(stolen),
+            heartDeclaration: stolen.suit === 'hearts' ? 'block' : undefined,
+          });
+          setPreRoundAnnouncement(`⚡ Pre-Round Grand Heist! Strategic AI played King of Clubs and stole your ${stolen.name}!`);
+        }
+
         ai.playedActions.push({
           id: `ai_pre_king_${Date.now()}`,
           card: faceClub,
@@ -423,7 +449,6 @@ export default function App() {
           debuffedPoints: 0,
           finalPoints: 4,
         });
-        setPreRoundAnnouncement(`⚡ Pre-Round Grand Heist! Strategic AI played King of Clubs and stole your ${stolen.name}!`);
         sounds.playCardRotate();
       }
     } else {
@@ -1424,7 +1449,7 @@ export default function App() {
               handlePreRoundPlayerFinished(localPlayerIndex);
             }
           }}
-          onConfirmKingSteal={stolenCardId => {
+          onConfirmKingSteal={(stolenCardId, asMinion) => {
             setGameState(prev => {
               const next: GameState = JSON.parse(JSON.stringify(prev));
               const player = next.players[localPlayerIndex];
@@ -1443,18 +1468,38 @@ export default function App() {
                 const cIdx = opp.hand.findIndex(c => c.id === stolenCardId);
                 if (cIdx >= 0) {
                   const stolenCard = opp.hand.splice(cIdx, 1)[0];
-                  const basePts = getUniversalPoints(stolenCard);
-                  player.playedActions.push({
-                    id: `stolen_play_${Date.now()}`,
-                    card: stolenCard,
-                    orientation: 'horizontal',
-                    energyCost: 0,
-                    basePoints: basePts,
-                    boostedPoints: 0,
-                    debuffedPoints: 0,
-                    finalPoints: basePts,
-                    heartDeclaration: stolenCard.suit === 'hearts' ? 'block' : undefined,
-                  });
+                  if (asMinion && stolenCard.rank === 1) {
+                    if (!player.minion) {
+                      player.minion = {
+                        id: `minion_${Date.now()}`,
+                        aceCard: stolenCard,
+                        hp: 1,
+                        maxHp: 1,
+                      };
+                      sounds.playBlock();
+                    } else if (player.minion.maxHp < 2) {
+                      player.minion.boostAceCard = stolenCard;
+                      player.minion.hp = 2;
+                      player.minion.maxHp = 2;
+                      sounds.playHeal();
+                    } else {
+                      player.minion.hp = player.minion.maxHp;
+                      sounds.playHeal();
+                    }
+                  } else {
+                    const basePts = getUniversalPoints(stolenCard);
+                    player.playedActions.push({
+                      id: `stolen_play_${Date.now()}`,
+                      card: stolenCard,
+                      orientation: 'horizontal',
+                      energyCost: 0,
+                      basePoints: basePts,
+                      boostedPoints: 0,
+                      debuffedPoints: 0,
+                      finalPoints: basePts,
+                      heartDeclaration: stolenCard.suit === 'hearts' ? 'block' : undefined,
+                    });
+                  }
                 }
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= 3;

@@ -11,7 +11,7 @@ interface ClubTargetModalProps {
   onConfirmDestroyEquipment: () => void;
   onConfirmJackDiscard: (targetCardId?: string) => void;
   onConfirmQueenDiscard: (targetCardId: string) => void;
-  onConfirmKingSteal: (targetCardId?: string) => void;
+  onConfirmKingSteal: (targetCardId?: string, asMinion?: boolean) => void;
   onCancel: () => void;
 }
 
@@ -252,27 +252,44 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    onClick={() => onConfirmKingSteal(undefined)}
-                    className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs rounded-xl cursor-pointer"
-                  >
-                    Pass (Discard Only, 1 Energy)
-                  </button>
-                  <button
-                    disabled={!selectedHandCardId}
-                    onClick={() => {
-                      if (selectedHandCardId) onConfirmKingSteal(selectedHandCardId);
-                    }}
-                    className={`flex items-center gap-2 px-5 py-2 font-bold text-xs rounded-xl transition-all ${
-                      selectedHandCardId
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-lg shadow-emerald-700/40'
-                        : 'bg-stone-800 text-stone-500 cursor-not-allowed'
-                    }`}
-                  >
-                    <Hand className="w-4 h-4" /> Steal & Play This Round
-                  </button>
-                </div>
+                {(() => {
+                  const selectedCard = opponentState.hand.find(c => c.id === selectedHandCardId);
+                  const isAce = selectedCard?.rank === 1;
+
+                  return (
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <button
+                        onClick={() => onConfirmKingSteal(undefined)}
+                        className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs rounded-xl cursor-pointer"
+                      >
+                        Pass (Discard Only, 1 Energy)
+                      </button>
+                      <button
+                        disabled={!selectedHandCardId}
+                        onClick={() => {
+                          if (selectedHandCardId) onConfirmKingSteal(selectedHandCardId, false);
+                        }}
+                        className={`flex items-center gap-2 px-5 py-2 font-bold text-xs rounded-xl transition-all ${
+                          selectedHandCardId
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-lg shadow-emerald-700/40 active:scale-95'
+                            : 'bg-stone-800 text-stone-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <Hand className="w-4 h-4" /> Steal & Play This Round
+                      </button>
+                      {isAce && (
+                        <button
+                          onClick={() => {
+                            if (selectedHandCardId) onConfirmKingSteal(selectedHandCardId, true);
+                          }}
+                          className="flex items-center gap-2 px-5 py-2 font-bold text-xs rounded-xl bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-lg shadow-blue-700/40 transition-all active:scale-95 border border-blue-400/50"
+                        >
+                          <Shield className="w-4 h-4 text-blue-200" /> Steal & Play as Minion This Round
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
