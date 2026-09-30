@@ -481,11 +481,22 @@ export class AIPlayerService {
       if (playableCards.length === 0) break;
 
       // Sort playable cards strategically:
-      // 1. Cards matching affinity suit (no limit!)
-      // 2. Spades (damage to pressure opponent)
-      // 3. Diamonds (to overcharge existing attack)
-      // 4. Clubs / Hearts
+      // 1. Spades (damage to pressure opponent) & Hearts/Clubs
+      // 2. Diamonds (to overcharge existing attacks/actions)
+      // 3. Affinity bonus
       playableCards.sort((a, b) => {
+        // Diamonds should be played after the actions they intend to boost!
+        const suitPriority = (suit: string) => {
+          if (suit === 'spades') return 4;
+          if (suit === 'hearts') return 3;
+          if (suit === 'clubs') return 2;
+          if (suit === 'diamonds') return 1;
+          return 0;
+        };
+        const aSuitPri = suitPriority(a.suit);
+        const bSuitPri = suitPriority(b.suit);
+        if (aSuitPri !== bSuitPri) return bSuitPri - aSuitPri;
+
         const aIsAffinity = a.suit === affinity ? 10 : 0;
         const bIsAffinity = b.suit === affinity ? 10 : 0;
         const aPts = getUniversalPoints(a);

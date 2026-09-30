@@ -314,9 +314,9 @@ export default function App() {
             secondPlayerIndex = 1;
             tieBreaker = `${next.players[1].name} revealed an Ace in hand and goes Second in Round 1.`;
           } else {
-            // Coin flip
-            secondPlayerIndex = Math.random() < 0.5 ? 0 : 1;
-            tieBreaker = `Fighter values tied! Coin flip selected ${next.players[secondPlayerIndex].name} to go Second in Round 1.`;
+            // Deterministic tie-breaker for consistent multiplayer sync
+            secondPlayerIndex = f1.suit.localeCompare(f2.suit) >= 0 ? 0 : 1;
+            tieBreaker = `Fighter values tied! ${next.players[secondPlayerIndex].name} goes Second in Round 1.`;
           }
         }
 
@@ -608,14 +608,18 @@ export default function App() {
               return;
             }
 
-            // If AI plays a Diamond card, boost the corresponding Spade attack (or first action)
+            // If AI plays a Diamond card, boost the corresponding Spade attack or active action
+            let storedTargetActionId = action.targetActionId;
             if (action.card.suit === 'diamonds' && !action.isJokerAction) {
               const targetAction = action.targetActionId
-                ? aiState.playedActions.find(a => a.id === action.targetActionId)
-                : aiState.playedActions.find(a => a.card.suit === 'spades') || aiState.playedActions[0];
-              if (targetAction) {
+                ? aiState.playedActions.find(a => a.id === action.targetActionId || a.card.id === action.targetActionId)
+                : aiState.playedActions.find(a => a.card.suit === 'spades') ||
+                  aiState.playedActions.find(a => a.heartDeclaration !== 'heal' && a.card.suit !== 'diamonds') ||
+                  aiState.playedActions[0];
+              if (targetAction && targetAction.heartDeclaration !== 'heal') {
                 targetAction.boostedPoints += basePts;
                 targetAction.finalPoints += basePts;
+                storedTargetActionId = targetAction.id;
               }
             }
 
@@ -629,7 +633,7 @@ export default function App() {
               debuffedPoints: 0,
               finalPoints: basePts,
               heartDeclaration: action.heartDeclaration,
-              targetActionId: action.targetActionId,
+              targetActionId: storedTargetActionId,
               isJokerAction: action.isJokerAction,
               clubSpecial: action.clubSpecial,
             });
@@ -680,6 +684,29 @@ export default function App() {
             }
           },
           () => {
+            // Post-planning pass: Ensure all Diamond boosts have been applied to valid targets
+            const diamondActions = aiState.playedActions.filter(a => a.card.suit === 'diamonds' && !a.isJokerAction);
+            const nonDiamondActions = aiState.playedActions.filter(
+              a => a.card.suit !== 'diamonds' && a.heartDeclaration !== 'heal' && !a.isJokerAction
+            );
+
+            diamondActions.forEach(dAct => {
+              const dPts = dAct.basePoints || getUniversalPoints(dAct.card);
+              // Check if target action exists and is already boosted
+              const isAlreadyAttached = dAct.targetActionId && aiState.playedActions.some(a => a.id === dAct.targetActionId);
+              if (!isAlreadyAttached && nonDiamondActions.length > 0) {
+                // Find best target: prefer Spades attacks with highest points, then any other non-heal action
+                const spadeTargets = nonDiamondActions.filter(a => a.card.suit === 'spades');
+                const target = spadeTargets.length > 0
+                  ? spadeTargets.sort((a, b) => b.finalPoints - a.finalPoints)[0]
+                  : nonDiamondActions[0];
+
+                target.boostedPoints += dPts;
+                target.finalPoints += dPts;
+                dAct.targetActionId = target.id;
+              }
+            });
+
             setIsAiThinking(false);
             aiState.isReadyForRound = true;
 
@@ -1175,22 +1202,22 @@ export default function App() {
             ) {
               const merged: GameState = JSON.parse(JSON.stringify(incoming));
 
-              // If local player already made their choices or progressed in this phase, preserve them
-              const localHasInteracted =
-                current.players[playerIdx].mulliganCount > 0 ||
-                current.players[playerIdx].mulliganDone ||
-                Boolean(current.players[playerIdx].fighter);
+              // Local player is strictly authoritative over their own hand, deck, mulligan progress, and fighter
+              merged.players[playerIdx] = {
+                ...incoming.players[playerIdx],
+                hand: current.players[playerIdx].hand,
+                deck: current.players[playerIdx].deck,
+                mulliganCount: current.players[playerIdx].mulliganCount,
+                mulliganDone: current.players[playerIdx].mulliganDone,
+                fighter: current.players[playerIdx].fighter,
+              };
 
-              if (localHasInteracted) {
-                merged.players[playerIdx] = {
-                  ...incoming.players[playerIdx],
-                  hand: current.players[playerIdx].hand,
-                  deck: current.players[playerIdx].deck,
-                  mulliganCount: current.players[playerIdx].mulliganCount,
-                  mulliganDone: current.players[playerIdx].mulliganDone,
-                  fighter: current.players[playerIdx].fighter,
-                };
-              }
+              // For opponent: take the furthest progress between incoming and current state
+              merged.players[oppIdx] = {
+                ...incoming.players[oppIdx],
+                mulliganDone: incoming.players[oppIdx].mulliganDone || current.players[oppIdx].mulliganDone,
+                fighter: incoming.players[oppIdx].fighter || current.players[oppIdx].fighter,
+              };
 
               // Check if both mulligans are done -> transition to fighter_setup
               if (merged.players[0].mulliganDone && merged.players[1].mulliganDone) {
@@ -1226,8 +1253,8 @@ export default function App() {
                       secondPlayerIndex = 1;
                       tieBreaker = `${merged.players[1].name} revealed an Ace in hand and goes Second in Round 1.`;
                     } else {
-                      secondPlayerIndex = 0;
-                      tieBreaker = `Fighter values tied! ${merged.players[0].name} goes Second in Round 1.`;
+                      secondPlayerIndex = f1.suit.localeCompare(f2.suit) >= 0 ? 0 : 1;
+                      tieBreaker = `Fighter values tied! ${merged.players[secondPlayerIndex].name} goes Second in Round 1.`;
                     }
                   }
 
@@ -1236,6 +1263,15 @@ export default function App() {
                   merged.tieBreakerInfo = tieBreaker;
                   checkAndInitiateRound(merged);
                 }
+              }
+
+              // If merged state made a phase transition or local progress not reflected in incoming, broadcast sync
+              const phaseChanged = merged.phase !== incoming.phase;
+              const localMulliganUnsynced = merged.players[playerIdx].mulliganDone && !incoming.players[playerIdx].mulliganDone;
+              const localFighterUnsynced = Boolean(merged.players[playerIdx].fighter) && !incoming.players[playerIdx].fighter;
+
+              if (phaseChanged || localMulliganUnsynced || localFighterUnsynced) {
+                broadcastGameState(merged);
               }
 
               return merged;
