@@ -125,7 +125,8 @@ export class AIPlayerService {
     onEquipMinion: (card: Card) => void,
     onBankCard: (cardId: string) => void,
     onReady: () => void,
-    roundNumber = 1
+    roundNumber = 1,
+    onActivateMinionDiamond?: (targetActionId: string) => void
   ) {
     let currentEnergy = aiState.energy;
     let hand = [...aiState.hand];
@@ -535,6 +536,36 @@ export class AIPlayerService {
       const idx = hand.findIndex(c => c.id === cardToPlay.id);
       if (idx >= 0) hand.splice(idx, 1);
       currentEnergy -= cost;
+    }
+
+    // -------------------------------------------------------------
+    // PRIORITY 6.5: MINION DIAMOND ENGINE BOOSTER (COSTS 1 ENERGY)
+    // -------------------------------------------------------------
+    // If minion has equipped Diamond permanent and AI has 1 Energy, boost the best action card!
+    if (
+      aiState.minion?.equippedPermanent?.suit === 'diamonds' &&
+      currentEnergy >= 1 &&
+      !aiState.hasUsedMinionDiamond &&
+      playedActions.length > 0 &&
+      roundNumber > 1
+    ) {
+      const eligibleTargets = playedActions.filter(
+        a => a.heartDeclaration !== 'heal' && !a.isJokerAction
+      );
+      if (eligibleTargets.length > 0) {
+        // Prioritize Spades attacks, then blocks/debuffs
+        const spadeTarget = eligibleTargets.find(a => a.card.suit === 'spades');
+        const chosenTarget = spadeTarget || eligibleTargets[0];
+        const boostAmount = aiState.minion.equippedPermanent.tierPoints;
+
+        chosenTarget.boostedPoints += boostAmount;
+        chosenTarget.finalPoints += boostAmount;
+        currentEnergy -= 1;
+
+        if (onActivateMinionDiamond) {
+          onActivateMinionDiamond(chosenTarget.id);
+        }
+      }
     }
 
     // -------------------------------------------------------------

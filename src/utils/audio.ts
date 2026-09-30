@@ -177,6 +177,25 @@ class SoundSystem {
       osc.stop(this.ctx.currentTime + i * 0.12 + 0.65);
     });
   }
+
+  public playBuff() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+    [300, 450, 600].forEach((freq, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.06);
+      gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.06 + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(this.ctx.currentTime + i * 0.06);
+      osc.stop(this.ctx.currentTime + i * 0.06 + 0.16);
+    });
+  }
 }
 
 export const sounds = new SoundSystem();

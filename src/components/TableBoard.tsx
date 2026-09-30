@@ -56,6 +56,7 @@ interface TableBoardProps {
   onRequestHeartChoice: (card: Card) => void;
   onRequestClubTarget: (card: Card) => void;
   onRequestDiamondTarget: (card: Card) => void;
+  onActivateMinionDiamond?: (targetActionId: string) => void;
 }
 
 export const TableBoard: React.FC<TableBoardProps> = ({
@@ -78,6 +79,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   onRequestHeartChoice,
   onRequestClubTarget,
   onRequestDiamondTarget,
+  onActivateMinionDiamond,
 }) => {
   const opponentIndex = localPlayerIndex === 0 ? 1 : 0;
   const player = gameState.players[localPlayerIndex];
@@ -85,6 +87,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
   const [selectedCardForAction, setSelectedCardForAction] = useState<Card | null>(null);
   const [dragOverZone, setDragOverZone] = useState<'action' | 'minion' | 'equipment' | null>(null);
+  const [showDiamondEnginePicker, setShowDiamondEnginePicker] = useState<boolean>(false);
 
   // Auto-deselect if card was discarded or removed from hand
   React.useEffect(() => {
@@ -560,8 +563,14 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
                 {opponent.minion.equippedPermanent && (
                   <div className="flex flex-col items-center">
-                    <span className="text-[9px] text-amber-300 font-bold mb-0.5">Equipped</span>
+                    <span className="text-[9px] text-amber-300 font-bold mb-0.5">Equipped Permanent</span>
                     <CardView card={opponent.minion.equippedPermanent.card} size="sm" />
+                    <span className="text-[9px] px-1.5 py-0.5 mt-1 rounded font-bold bg-stone-900 border border-amber-500/40 text-amber-300 text-center">
+                      {opponent.minion.equippedPermanent.suit === 'spades' && `⚔️ +${opponent.minion.equippedPermanent.tierPoints} Atk`}
+                      {opponent.minion.equippedPermanent.suit === 'hearts' && `🛡️ +${opponent.minion.equippedPermanent.tierPoints} Shield`}
+                      {opponent.minion.equippedPermanent.suit === 'diamonds' && `⚡ Engine Boost (1⚡)`}
+                      {opponent.minion.equippedPermanent.suit === 'clubs' && `✂️ -${opponent.minion.equippedPermanent.tierPoints} Sabotage`}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1114,6 +1123,64 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                   <div className="flex flex-col items-center">
                     <span className="text-[9px] text-amber-300 font-bold mb-0.5">Equipped Permanent</span>
                     <CardView card={player.minion.equippedPermanent.card} size="sm" />
+                    
+                    {/* Status Badge according to suit */}
+                    <div className="mt-1 flex flex-col items-center gap-1">
+                      {player.minion.equippedPermanent.suit === 'spades' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-900 border border-slate-700 text-slate-200 text-center">
+                          ⚔️ +{player.minion.equippedPermanent.tierPoints} Atk on Spades
+                        </span>
+                      )}
+                      {player.minion.equippedPermanent.suit === 'hearts' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-950/80 border border-rose-600/50 text-rose-300 text-center">
+                          🛡️ +{player.minion.equippedPermanent.tierPoints} Passive Shield
+                        </span>
+                      )}
+                      {player.minion.equippedPermanent.suit === 'clubs' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-950/80 border border-emerald-600/50 text-emerald-300 text-center">
+                          ✂️ -{player.minion.equippedPermanent.tierPoints} Sabotage
+                        </span>
+                      )}
+
+                      {/* Diamond Permanent Engine: Interactive Action Boost */}
+                      {player.minion.equippedPermanent.suit === 'diamonds' && (
+                        <div>
+                          {player.hasUsedMinionDiamond ? (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-amber-950/80 border border-amber-500/60 text-amber-300 flex items-center gap-1">
+                              ✓ Engine Active (+{player.minion.equippedPermanent.tierPoints} pts)
+                            </span>
+                          ) : isMyTurn && player.energy >= 1 && onActivateMinionDiamond ? (
+                            (() => {
+                              const eligible = player.playedActions.filter(
+                                a => a.heartDeclaration !== 'heal' && !a.isJokerAction
+                              );
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (eligible.length === 0) {
+                                      alert("Play an action card first (Attack, Block, Debuff), then activate your Diamond Engine to boost it by +" + player.minion?.equippedPermanent?.tierPoints + " points for 1 Energy!");
+                                    } else if (eligible.length === 1) {
+                                      onActivateMinionDiamond(eligible[0].id);
+                                    } else {
+                                      setShowDiamondEnginePicker(true);
+                                    }
+                                  }}
+                                  className="text-[10px] px-2.5 py-1 rounded-xl font-black bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 border border-amber-300 shadow-md shadow-amber-500/20 cursor-pointer animate-pulse transition-all active:scale-95 flex items-center gap-1"
+                                  title={`Spend 1 Energy to boost an action card by +${player.minion.equippedPermanent.tierPoints} points`}
+                                >
+                                  <Zap className="w-3 h-3 fill-current" />
+                                  <span>Use Engine (1⚡)</span>
+                                </button>
+                              );
+                            })()
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-950/50 border border-amber-700/50 text-amber-400 text-center">
+                              ⚡ Engine (+{player.minion.equippedPermanent.tierPoints} pts, 1⚡)
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div
@@ -1354,6 +1421,76 @@ export const TableBoard: React.FC<TableBoardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Diamond Engine Target Selection Modal */}
+      {showDiamondEnginePicker && player.minion?.equippedPermanent?.suit === 'diamonds' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="bg-stone-900 border-2 border-amber-500 rounded-3xl p-5 sm:p-6 shadow-2xl max-w-lg w-full text-stone-100 flex flex-col items-center">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-xl bg-amber-950 border border-amber-500/50 text-amber-400">
+                <Zap className="w-6 h-6 fill-current" />
+              </div>
+              <div>
+                <h3 className="text-lg font-serif font-black text-amber-300">
+                  Activate Diamond Engine Booster (1⚡)
+                </h3>
+                <p className="text-[11px] text-stone-400">
+                  Select which played action to boost by +{player.minion.equippedPermanent.tierPoints} Universal Value Points
+                </p>
+              </div>
+            </div>
+
+            <div className="w-full my-4 flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+              {player.playedActions
+                .filter(a => a.heartDeclaration !== 'heal' && !a.isJokerAction)
+                .map(action => (
+                  <button
+                    key={action.id}
+                    onClick={() => {
+                      if (onActivateMinionDiamond) {
+                        onActivateMinionDiamond(action.id);
+                      }
+                      setShowDiamondEnginePicker(false);
+                    }}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-stone-950 border border-amber-500/40 hover:bg-amber-950/60 hover:border-amber-400 text-stone-200 cursor-pointer text-xs transition-all active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">
+                        {action.card.suit === 'spades' ? '⚔️' : action.card.suit === 'hearts' ? '🛡️' : '✂️'}
+                      </span>
+                      <div className="text-left">
+                        <div className="font-bold text-amber-300">{action.card.name}</div>
+                        <div className="text-[10px] text-stone-400 capitalize">
+                          {action.card.suit} {action.heartDeclaration ? `(${action.heartDeclaration})` : 'Action'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-stone-300">
+                        <span className="font-bold">{action.finalPoints} pts</span>
+                        <span className="text-stone-500 mx-1">→</span>
+                        <strong className="text-amber-300 font-bold text-sm">
+                          {action.finalPoints + (player.minion?.equippedPermanent?.tierPoints || 0)} pts
+                        </strong>
+                      </div>
+                      <span className="text-[10px] text-amber-400 font-semibold">
+                        Click to Boost (+{player.minion?.equippedPermanent?.tierPoints} pts)
+                      </span>
+                    </div>
+                  </button>
+                ))}
+            </div>
+
+            <button
+              onClick={() => setShowDiamondEnginePicker(false)}
+              className="px-5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

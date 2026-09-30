@@ -72,6 +72,7 @@ export interface PlayerState {
   playedActions: PlayedActionCard[];
   bankedCardId?: string | null;
   attacksBlockedByJoker?: boolean;
+  hasUsedMinionDiamond?: boolean;
   // Stats
   shieldPointsThisRound: number;
   blockPointsThisRound: number;

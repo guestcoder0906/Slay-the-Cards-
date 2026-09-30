@@ -720,7 +720,26 @@ export default function App() {
               broadcastGameState(next);
             }
           },
-          next.roundNumber
+          next.roundNumber,
+          targetActionId => {
+            if (
+              aiState.minion?.equippedPermanent?.suit === 'diamonds' &&
+              aiState.energy >= 1 &&
+              !aiState.hasUsedMinionDiamond
+            ) {
+              const target = aiState.playedActions.find(
+                a => a.id === targetActionId || a.card.id === targetActionId
+              );
+              if (target) {
+                aiState.energy -= 1;
+                aiState.hasUsedMinionDiamond = true;
+                const boost = aiState.minion.equippedPermanent.tierPoints;
+                target.boostedPoints += boost;
+                target.finalPoints += boost;
+                sounds.playBuff();
+              }
+            }
+          }
         );
 
         return next;
@@ -875,6 +894,42 @@ export default function App() {
         suit: card.suit as any,
       };
       sounds.playCardRotate();
+
+      broadcastGameState(next);
+      return next;
+    });
+  };
+
+  const handleActivateMinionDiamond = (targetActionId: string) => {
+    setGameState(prev => {
+      if (
+        prev.activePlayerIndex !== localPlayerIndex ||
+        prev.phase !== 'round_action' ||
+        prev.roundNumber === 1
+      )
+        return prev;
+      const next: GameState = JSON.parse(JSON.stringify(prev));
+      const player = next.players[localPlayerIndex];
+
+      if (
+        !player.minion?.equippedPermanent ||
+        player.minion.equippedPermanent.suit !== 'diamonds'
+      )
+        return prev;
+      if (player.energy < 1 || player.hasUsedMinionDiamond) return prev;
+
+      const targetAction = player.playedActions.find(
+        a => a.id === targetActionId || a.card.id === targetActionId
+      );
+      if (!targetAction || targetAction.heartDeclaration === 'heal' || targetAction.isJokerAction)
+        return prev;
+
+      const tierPoints = player.minion.equippedPermanent.tierPoints;
+      player.energy -= 1;
+      player.hasUsedMinionDiamond = true;
+      targetAction.boostedPoints += tierPoints;
+      targetAction.finalPoints += tierPoints;
+      sounds.playBuff();
 
       broadcastGameState(next);
       return next;
@@ -1492,6 +1547,7 @@ export default function App() {
             if (gameState.roundNumber === 1) return;
             setPendingDiamondCard(card);
           }}
+          onActivateMinionDiamond={handleActivateMinionDiamond}
         />
       </main>
 

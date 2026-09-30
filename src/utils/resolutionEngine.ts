@@ -189,20 +189,6 @@ export function resolveCombatRound(currentState: GameState): {
       });
     }
 
-    // Vertically equipped Diamond on minion provides passive engine boost if attacker attacks
-    if (hasAttack && attacker.minion?.equippedPermanent?.suit === 'diamonds') {
-      const diamondBonus = attacker.minion.equippedPermanent.tierPoints;
-      attackPoints += diamondBonus;
-      logs.push({
-        id: `diamond_eq_${attacker.id}_${Date.now()}`,
-        phase: 'damage',
-        title: `${attacker.name}'s Minion Diamond Engine Boost Activated!`,
-        description: `Equipped ${attacker.minion.equippedPermanent.card.name} boosted attack actions by +${diamondBonus} points!`,
-        sourcePlayerId: attacker.id,
-        amount: diamondBonus,
-      });
-    }
-
     return attackPoints;
   };
 
@@ -414,6 +400,7 @@ export function resolveCombatRound(currentState: GameState): {
     // Energy resets to 3
     player.energy = 3;
     player.isReadyForRound = false;
+    player.hasUsedMinionDiamond = false;
   });
 
   logs.push({
