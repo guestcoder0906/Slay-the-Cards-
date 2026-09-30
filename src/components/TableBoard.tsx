@@ -1341,9 +1341,28 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                           ? 'DISCARD'
                           : action.clubSpecial?.type === 'king'
                           ? 'HEIST'
+                          : action.card.suit === 'diamonds' && !action.isJokerAction
+                          ? action.targetActionId
+                            ? '⚡ BOOSTED'
+                            : '⚡ TARGET'
                           : `${action.finalPoints} PTS`
                       }
                     />
+
+                    {/* Choose Target Button for Unassigned Played/Stolen Diamond Card */}
+                    {action.card.suit === 'diamonds' &&
+                      !action.isJokerAction &&
+                      !action.targetActionId &&
+                      isMyTurn && (
+                        <button
+                          onClick={() => onRequestDiamondTarget(action.card)}
+                          className="mt-1 text-[9px] px-2 py-0.5 rounded-md font-black bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center gap-0.5 transition-all shadow-md animate-pulse ring-1 ring-amber-300 cursor-pointer active:scale-95"
+                          title={`Click to choose which action card receives this +${action.finalPoints} Diamond boost`}
+                        >
+                          <Zap className="w-2.5 h-2.5 fill-current" />
+                          <span>Choose Target (+{action.finalPoints})</span>
+                        </button>
+                      )}
 
                     {/* Direct 1-Click Diamond Engine Booster Button */}
                     {player.minion?.equippedPermanent?.suit === 'diamonds' &&

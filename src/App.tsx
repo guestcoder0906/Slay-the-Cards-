@@ -880,6 +880,18 @@ export default function App() {
       player.playedActions.push(action);
       sounds.playCardPlace();
 
+      // Check if player has any unattached Diamond cards on the table waiting for a target
+      if (card.suit !== 'diamonds' && !card.isJoker) {
+        const unassignedDiamond = player.playedActions.find(
+          a => a.card.suit === 'diamonds' && !a.isJokerAction && !a.targetActionId
+        );
+        if (unassignedDiamond) {
+          setTimeout(() => {
+            setPendingDiamondCard(unassignedDiamond.card);
+          }, 300);
+        }
+      }
+
       broadcastGameState(next);
       return next;
     });
@@ -1693,35 +1705,56 @@ export default function App() {
             setGameState(prev => {
               const next: GameState = JSON.parse(JSON.stringify(prev));
               const player = next.players[localPlayerIndex];
-              if (player.bankedCardId === pendingDiamondCard.id) {
-                player.bankedCardId = null;
-                player.energy += 1;
+
+              // Check if this diamond card was already placed on table (e.g. stolen diamond card or unattached boost)
+              const existingAct = player.playedActions.find(a => a.card.id === pendingDiamondCard.id);
+
+              if (existingAct) {
+                // If it was already boosting a target previously, remove previous boost first
+                if (existingAct.targetActionId) {
+                  const oldTarget = player.playedActions.find(a => a.id === existingAct.targetActionId);
+                  if (oldTarget) {
+                    oldTarget.boostedPoints = Math.max(0, oldTarget.boostedPoints - points);
+                    oldTarget.finalPoints = Math.max(0, oldTarget.finalPoints - points);
+                  }
+                }
+                existingAct.targetActionId = targetActionId;
+                const targetAct = player.playedActions.find(a => a.id === targetActionId);
+                if (targetAct) {
+                  targetAct.boostedPoints += points;
+                  targetAct.finalPoints += points;
+                }
+              } else {
+                if (player.bankedCardId === pendingDiamondCard.id) {
+                  player.bankedCardId = null;
+                  player.energy += 1;
+                }
+                const cost = getCardEnergyCost(pendingDiamondCard);
+                if (player.energy < cost) return prev;
+
+                player.hand = player.hand.filter(c => c.id !== pendingDiamondCard.id);
+                player.energy -= cost;
+
+                // Boost target action
+                const targetAct = player.playedActions.find(a => a.id === targetActionId);
+                if (targetAct) {
+                  targetAct.boostedPoints += points;
+                  targetAct.finalPoints += points;
+                }
+
+                // Also record diamond played action
+                player.playedActions.push({
+                  id: `act_diamond_${Date.now()}`,
+                  card: pendingDiamondCard,
+                  orientation: 'horizontal',
+                  energyCost: cost,
+                  basePoints: points,
+                  boostedPoints: 0,
+                  debuffedPoints: 0,
+                  finalPoints: points,
+                  targetActionId,
+                });
               }
-              const cost = getCardEnergyCost(pendingDiamondCard);
-              if (player.energy < cost) return prev;
-
-              player.hand = player.hand.filter(c => c.id !== pendingDiamondCard.id);
-              player.energy -= cost;
-
-              // Boost target action
-              const targetAct = player.playedActions.find(a => a.id === targetActionId);
-              if (targetAct) {
-                targetAct.boostedPoints += points;
-                targetAct.finalPoints += points;
-              }
-
-              // Also record diamond played action
-              player.playedActions.push({
-                id: `act_diamond_${Date.now()}`,
-                card: pendingDiamondCard,
-                orientation: 'horizontal',
-                energyCost: cost,
-                basePoints: points,
-                boostedPoints: 0,
-                debuffedPoints: 0,
-                finalPoints: points,
-                targetActionId,
-              });
 
               sounds.playHeal();
               broadcastGameState(next);
@@ -1936,16 +1969,10 @@ export default function App() {
                     }
                   } else {
                     const basePts = getUniversalPoints(stolenCard);
-                    if (stolenCard.suit === 'diamonds') {
-                      const targetAction = player.playedActions.find(a => a.card.suit === 'spades');
-                      if (targetAction) {
-                        targetAction.boostedPoints += basePts;
-                        targetAction.finalPoints += basePts;
-                      }
-                    }
+                    const stolenActionId = `stolen_play_${Date.now()}`;
 
                     player.playedActions.push({
-                      id: `stolen_play_${Date.now()}`,
+                      id: stolenActionId,
                       card: stolenCard,
                       orientation: 'horizontal',
                       energyCost: 0,
@@ -1954,7 +1981,25 @@ export default function App() {
                       debuffedPoints: 0,
                       finalPoints: basePts,
                       heartDeclaration: stolenCard.suit === 'hearts' ? 'block' : undefined,
+                      targetActionId: undefined,
                     });
+
+                    // If stolen card is a Diamond, prompt target picker if player has eligible actions on table!
+                    if (stolenCard && stolenCard.suit === 'diamonds') {
+                      const stolenRef = stolenCard;
+                      const hasEligible = player.playedActions.some(
+                        a =>
+                          a.heartDeclaration !== 'heal' &&
+                          !a.isJokerAction &&
+                          a.card.suit !== 'diamonds' &&
+                          a.id !== stolenActionId
+                      );
+                      if (hasEligible) {
+                        setTimeout(() => {
+                          setPendingDiamondCard(stolenRef);
+                        }, 250);
+                      }
+                    }
                   }
                 }
 
