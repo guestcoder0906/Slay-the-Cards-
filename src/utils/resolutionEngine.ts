@@ -465,6 +465,7 @@ export function resolveCombatRound(currentState: GameState): {
       state.roundInitiativeSecondPlayerIndex === 0 ? 1 : 0;
     state.activePlayerIndex = state.roundInitiativeSecondPlayerIndex === 0 ? 1 : 0;
     state.phase = 'round_action';
+    state.awaitingFirstPlayerResolution = false;
   }
 
   state.combatLogs = logs;

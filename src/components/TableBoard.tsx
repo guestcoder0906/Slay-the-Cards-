@@ -58,6 +58,7 @@ interface TableBoardProps {
   onRequestDiamondTarget: (card: Card) => void;
   onActivateMinionDiamond?: (targetActionId: string) => void;
   onSetFighterDiamondBoost?: (actionId: string) => void;
+  onResolveTurn?: () => void;
 }
 
 export const TableBoard: React.FC<TableBoardProps> = ({
@@ -82,6 +83,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   onRequestDiamondTarget,
   onActivateMinionDiamond,
   onSetFighterDiamondBoost,
+  onResolveTurn,
 }) => {
   const opponentIndex = localPlayerIndex === 0 ? 1 : 0;
   const player = gameState.players[localPlayerIndex];
@@ -100,10 +102,18 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
   // Turn logic
   const isPlayerSecond = gameState.roundInitiativeSecondPlayerIndex === localPlayerIndex;
+  const isPlayerFirst = !isPlayerSecond;
+  const isAwaitingFirstPlayerResolve =
+    (Boolean(gameState.awaitingFirstPlayerResolution) || (player.isReadyForRound && opponent.isReadyForRound)) &&
+    isPlayerFirst &&
+    !gameState.isResolving &&
+    gameState.phase === 'round_action';
+
   const isMyTurn =
     gameState.phase === 'round_action' &&
     gameState.activePlayerIndex === localPlayerIndex &&
-    !gameState.isResolving;
+    !gameState.isResolving &&
+    !isAwaitingFirstPlayerResolve;
   const affinity = player.fighter?.affinity || 'spades';
 
   // Non-affinity suits already played this round
@@ -815,42 +825,78 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             )}
 
             {/* End Turn / Resolve Button */}
-            <button
-              disabled={!isMyTurn}
-              onClick={onEndTurn}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg ${
-                isMyTurn
-                  ? isPlayerSecond
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-emerald-700/40 cursor-pointer active:scale-95 ring-2 ring-emerald-400'
-                    : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 shadow-amber-600/30 cursor-pointer active:scale-95'
-                  : 'bg-stone-800 text-stone-500 cursor-not-allowed border border-stone-700'
-              }`}
-            >
-              {isMyTurn ? (
-                isPlayerSecond ? (
-                  <>
-                    <Swords className="w-4 h-4 fill-current" />
-                    <span>End Turn & Resolve Combat</span>
-                  </>
+            {isAwaitingFirstPlayerResolve ? (
+              <button
+                onClick={onResolveTurn}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-stone-950 shadow-emerald-700/50 cursor-pointer active:scale-95 ring-2 ring-emerald-300 animate-pulse"
+              >
+                <Swords className="w-4 h-4 fill-current text-stone-950" />
+                <span>Resolve Turn & Show Results</span>
+              </button>
+            ) : (
+              <button
+                disabled={!isMyTurn}
+                onClick={onEndTurn}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg ${
+                  isMyTurn
+                    ? isPlayerSecond
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-emerald-700/40 cursor-pointer active:scale-95 ring-2 ring-emerald-400'
+                      : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 shadow-amber-600/30 cursor-pointer active:scale-95'
+                    : 'bg-stone-800 text-stone-500 cursor-not-allowed border border-stone-700'
+                }`}
+              >
+                {isMyTurn ? (
+                  isPlayerSecond ? (
+                    <>
+                      <Swords className="w-4 h-4 fill-current" />
+                      <span>End Turn & Resolve Combat</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>End Turn (Pass to Opponent)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )
                 ) : (
                   <>
-                    <span>End Turn (Pass to Opponent)</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <Lock className="w-3.5 h-3.5 text-stone-500" />
+                    <span>Waiting for Opponent...</span>
                   </>
-                )
-              ) : (
-                <>
-                  <Lock className="w-3.5 h-3.5 text-stone-500" />
-                  <span>Waiting for Opponent...</span>
-                </>
-              )}
-            </button>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Turn Help Prompt */}
+        {/* Turn Help Prompt / Review Banner */}
         <div className="mb-3 px-1 text-xs">
-          {isMyTurn ? (
+          {isAwaitingFirstPlayerResolve ? (
+            <div className="p-3.5 bg-gradient-to-r from-emerald-950/90 via-stone-900 to-teal-950/90 border-2 border-emerald-500/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-200 shadow-xl shadow-emerald-950/50 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-300 shrink-0">
+                  <Swords className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <strong className="text-white font-bold text-sm">Opponent Turn Revealed!</strong>
+                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300">
+                      Ready to Clash
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-300 mt-0.5">
+                    {opponent.name} has committed their cards above. Review their played cards and badges, then press <strong className="text-emerald-300">Resolve Turn</strong> to see full combat results!
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onResolveTurn}
+                className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-stone-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-900/40 cursor-pointer transition-all active:scale-95 shrink-0 flex items-center justify-center gap-2 ring-2 ring-emerald-300"
+              >
+                <Swords className="w-4 h-4 fill-current" />
+                <span>Resolve Turn</span>
+              </button>
+            </div>
+          ) : isMyTurn ? (
             <p className="text-emerald-300/90 font-medium">
               ⚡ You have <strong className="text-white font-bold">{player.energy}/{player.maxEnergy || 3} Energy</strong> available.
               You may play <strong className="text-amber-300">multiple cards</strong> matching your {SUIT_NAMES[affinity]} affinity (or 1 non-matching action). Drag cards below or tap them to play!

@@ -832,8 +832,11 @@ export default function App() {
 
             const isAiSecond = next.roundInitiativeSecondPlayerIndex === 1;
             if (isAiSecond) {
-              // AI was going second: both players have committed -> check unassigned debuffs and trigger resolution!
-              checkPendingDebuffsAndResolve(next);
+              // AI was going second: human player (Player 0) went first!
+              // Allow the human player to inspect AI's played cards first before resolving.
+              next.awaitingFirstPlayerResolution = true;
+              next.activePlayerIndex = 0;
+              broadcastGameState(next);
             } else {
               // AI was going first: pass turn to the Human player (index 0)!
               next.activePlayerIndex = 0;
@@ -1176,6 +1179,7 @@ export default function App() {
 
       if (isHumanSecond) {
         // Human was going second: both players have committed cards -> check debuffs & resolve combat!
+        next.awaitingFirstPlayerResolution = false;
         checkPendingDebuffsAndResolve(next);
       } else {
         // Human was going first: pass initiative to opponent!
@@ -1184,6 +1188,15 @@ export default function App() {
         broadcastGameState(next);
       }
 
+      return next;
+    });
+  };
+
+  const handleConfirmResolveTurn = () => {
+    setGameState(prev => {
+      const next: GameState = JSON.parse(JSON.stringify(prev));
+      next.awaitingFirstPlayerResolution = false;
+      checkPendingDebuffsAndResolve(next);
       return next;
     });
   };
@@ -1366,7 +1379,9 @@ export default function App() {
   const triggerCombatResolution = (baseState?: GameState) => {
     setGameState(current => {
       const stateToResolve = baseState || current;
+      stateToResolve.awaitingFirstPlayerResolution = false;
       const { updatedState, logs } = resolveCombatRound(stateToResolve);
+      updatedState.awaitingFirstPlayerResolution = false;
       updatedState.phase = 'resolution';
       updatedState.isResolving = true;
       broadcastGameState(updatedState);
@@ -1728,6 +1743,7 @@ export default function App() {
           }}
           onActivateMinionDiamond={handleActivateMinionDiamond}
           onSetFighterDiamondBoost={handleSetFighterDiamondBoost}
+          onResolveTurn={handleConfirmResolveTurn}
         />
       </main>
 

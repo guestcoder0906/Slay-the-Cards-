@@ -116,6 +116,7 @@ export interface GameState {
   preRoundPendingPlayerIndex?: number | null;
   pendingDebuffPlayerIndex?: number | null;
   pendingDebuffActionId?: string | null;
+  awaitingFirstPlayerResolution?: boolean;
   tieBreakerInfo?: string;
 }
 
