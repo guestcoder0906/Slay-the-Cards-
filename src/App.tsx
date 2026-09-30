@@ -904,8 +904,7 @@ export default function App() {
     setGameState(prev => {
       if (
         prev.activePlayerIndex !== localPlayerIndex ||
-        prev.phase !== 'round_action' ||
-        prev.roundNumber === 1
+        prev.phase !== 'round_action'
       )
         return prev;
       const next: GameState = JSON.parse(JSON.stringify(prev));
@@ -916,7 +915,7 @@ export default function App() {
         player.minion.equippedPermanent.suit !== 'diamonds'
       )
         return prev;
-      if (player.energy < 1 || player.hasUsedMinionDiamond) return prev;
+      if (player.energy < 1) return prev;
 
       const targetAction = player.playedActions.find(
         a => a.id === targetActionId || a.card.id === targetActionId

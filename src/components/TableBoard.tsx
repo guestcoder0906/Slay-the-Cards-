@@ -742,6 +742,38 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
           {/* Round Controls */}
           <div className="flex items-center gap-3">
+            {/* Diamond Engine Booster Button */}
+            {player.minion?.equippedPermanent?.suit === 'diamonds' && (
+              <button
+                disabled={!isMyTurn || player.energy < 1}
+                onClick={() => {
+                  const eligible = player.playedActions.filter(
+                    a => a.heartDeclaration !== 'heal' && !a.isJokerAction
+                  );
+                  if (eligible.length === 0) {
+                    alert(
+                      'Play an action card first (Attack, Block, Debuff), then activate your Diamond Engine to boost it by +' +
+                        player.minion?.equippedPermanent?.tierPoints +
+                        ' points for 1 Energy!'
+                    );
+                  } else if (eligible.length === 1) {
+                    onActivateMinionDiamond?.(eligible[0].id);
+                  } else {
+                    setShowDiamondEnginePicker(true);
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-md ${
+                  isMyTurn && player.energy >= 1
+                    ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-amber-900/40 cursor-pointer active:scale-95 animate-pulse'
+                    : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50'
+                }`}
+                title={`Diamond Engine: Spend 1 Energy to boost an action card by +${player.minion.equippedPermanent.tierPoints} Universal Value Points`}
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>Engine Boost (+{player.minion.equippedPermanent.tierPoints} pts, 1⚡)</span>
+              </button>
+            )}
+
             {/* Joker Button */}
             {!player.hasUsedJoker && (
               <button
@@ -1144,35 +1176,36 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
                       {/* Diamond Permanent Engine: Interactive Action Boost */}
                       {player.minion.equippedPermanent.suit === 'diamonds' && (
-                        <div>
-                          {player.hasUsedMinionDiamond ? (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-amber-950/80 border border-amber-500/60 text-amber-300 flex items-center gap-1">
-                              ✓ Engine Active (+{player.minion.equippedPermanent.tierPoints} pts)
-                            </span>
-                          ) : isMyTurn && player.energy >= 1 && onActivateMinionDiamond ? (
-                            (() => {
-                              const eligible = player.playedActions.filter(
-                                a => a.heartDeclaration !== 'heal' && !a.isJokerAction
-                              );
-                              return (
-                                <button
-                                  onClick={() => {
-                                    if (eligible.length === 0) {
-                                      alert("Play an action card first (Attack, Block, Debuff), then activate your Diamond Engine to boost it by +" + player.minion?.equippedPermanent?.tierPoints + " points for 1 Energy!");
-                                    } else if (eligible.length === 1) {
-                                      onActivateMinionDiamond(eligible[0].id);
-                                    } else {
-                                      setShowDiamondEnginePicker(true);
-                                    }
-                                  }}
-                                  className="text-[10px] px-2.5 py-1 rounded-xl font-black bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 border border-amber-300 shadow-md shadow-amber-500/20 cursor-pointer animate-pulse transition-all active:scale-95 flex items-center gap-1"
-                                  title={`Spend 1 Energy to boost an action card by +${player.minion.equippedPermanent.tierPoints} points`}
-                                >
-                                  <Zap className="w-3 h-3 fill-current" />
-                                  <span>Use Engine (1⚡)</span>
-                                </button>
-                              );
-                            })()
+                        <div className="flex flex-col items-center gap-0.5">
+                          {isMyTurn && onActivateMinionDiamond ? (
+                            <button
+                              disabled={player.energy < 1}
+                              onClick={() => {
+                                const eligible = player.playedActions.filter(
+                                  a => a.heartDeclaration !== 'heal' && !a.isJokerAction
+                                );
+                                if (eligible.length === 0) {
+                                  alert(
+                                    'Play an action card first (Attack, Block, Debuff), then activate your Diamond Engine to boost it by +' +
+                                      player.minion?.equippedPermanent?.tierPoints +
+                                      ' points for 1 Energy!'
+                                  );
+                                } else if (eligible.length === 1) {
+                                  onActivateMinionDiamond(eligible[0].id);
+                                } else {
+                                  setShowDiamondEnginePicker(true);
+                                }
+                              }}
+                              className={`text-[10px] px-2.5 py-1 rounded-xl font-black border transition-all flex items-center gap-1 ${
+                                player.energy >= 1
+                                  ? 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 border-amber-300 shadow-md shadow-amber-500/20 cursor-pointer active:scale-95 animate-pulse'
+                                  : 'bg-stone-800 border-stone-700 text-stone-500 cursor-not-allowed'
+                              }`}
+                              title={`Spend 1 Energy to boost an action card by +${player.minion.equippedPermanent.tierPoints} points`}
+                            >
+                              <Zap className="w-3 h-3 fill-current" />
+                              <span>Use Engine (1⚡)</span>
+                            </button>
                           ) : (
                             <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-950/50 border border-amber-700/50 text-amber-400 text-center">
                               ⚡ Engine (+{player.minion.equippedPermanent.tierPoints} pts, 1⚡)
@@ -1296,7 +1329,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             ) : (
               <div className="flex flex-wrap items-center justify-center gap-2 my-auto overflow-x-auto max-w-full p-1 scrollbar-thin">
                 {player.playedActions.map(action => (
-                  <div key={action.id} className="relative group shrink-0">
+                  <div key={action.id} className="relative group shrink-0 flex flex-col items-center">
                     <CardView
                       card={action.card}
                       orientation="horizontal"
@@ -1311,6 +1344,26 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                           : `${action.finalPoints} PTS`
                       }
                     />
+
+                    {/* Direct 1-Click Diamond Engine Booster Button */}
+                    {player.minion?.equippedPermanent?.suit === 'diamonds' &&
+                      isMyTurn &&
+                      action.heartDeclaration !== 'heal' &&
+                      !action.isJokerAction && (
+                        <button
+                          disabled={player.energy < 1}
+                          onClick={() => onActivateMinionDiamond?.(action.id)}
+                          className={`mt-1 text-[9px] px-2 py-0.5 rounded-md font-black flex items-center gap-0.5 transition-all shadow-sm ${
+                            player.energy >= 1
+                              ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 cursor-pointer active:scale-95 animate-pulse ring-1 ring-amber-300'
+                              : 'bg-stone-800 text-stone-600 cursor-not-allowed'
+                          }`}
+                          title={`Spend 1 Energy to boost this action by +${player.minion.equippedPermanent.tierPoints} Universal Value Points`}
+                        >
+                          <Zap className="w-2.5 h-2.5 fill-current" />
+                          <span>+{player.minion.equippedPermanent.tierPoints} Boost (1⚡)</span>
+                        </button>
+                      )}
                   </div>
                 ))}
               </div>
