@@ -981,9 +981,7 @@ export default function App() {
         const p1EligibleActions = state.players[0].playedActions
           .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
           .sort((a, b) => b.finalPoints - a.finalPoints);
-        if (p1EligibleActions.length > 0) {
-          p2UnassignedClub.targetActionId = p1EligibleActions[0].id;
-        }
+        p2UnassignedClub.targetActionId = p1EligibleActions.length > 0 ? p1EligibleActions[0].id : 'auto_highest';
       } else {
         const p1EligibleActions = state.players[0].playedActions.filter(
           a => a.heartDeclaration !== 'heal' && a.finalPoints > 0
@@ -998,12 +996,15 @@ export default function App() {
           });
           broadcastGameState(state);
           return;
+        } else {
+          p2UnassignedClub.targetActionId = 'auto_highest';
         }
       }
     }
 
     state.pendingDebuffPlayerIndex = null;
     state.pendingDebuffActionId = null;
+    setPendingAssignDebuffAction(null);
     triggerCombatResolution(state);
   };
 
@@ -1015,7 +1016,7 @@ export default function App() {
 
       if (targetDebuffActionId) {
         const player = next.players[targetDebuffPlayerIdx];
-        const act = player.playedActions.find(a => a.id === targetDebuffActionId);
+        const act = player?.playedActions.find(a => a.id === targetDebuffActionId);
         if (act) {
           if (targetActionId) {
             act.targetActionId = targetActionId;
@@ -1026,9 +1027,7 @@ export default function App() {
             const eligible = opp.playedActions
               .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
               .sort((a, b) => b.finalPoints - a.finalPoints);
-            if (eligible.length > 0) {
-              act.targetActionId = eligible[0].id;
-            }
+            act.targetActionId = eligible.length > 0 ? eligible[0].id : 'auto_highest';
           }
         }
       }
@@ -1037,19 +1036,17 @@ export default function App() {
       next.pendingDebuffPlayerIndex = null;
       next.pendingDebuffActionId = null;
 
-      // Check if Player 1 also has an unassigned debuff (if not AI)
-      const p2UnassignedClub = next.players[1].playedActions.find(
-        a => a.card.suit === 'clubs' && !a.isJokerAction && !a.clubSpecial && !a.targetActionId
-      );
-      if (p2UnassignedClub) {
-        if (next.players[1].isAI) {
-          const p1Eligible = next.players[0].playedActions
-            .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
-            .sort((a, b) => b.finalPoints - a.finalPoints);
-          if (p1Eligible.length > 0) {
-            p2UnassignedClub.targetActionId = p1Eligible[0].id;
-          }
-        } else {
+      // Only check Player 1 if Player 0 just finished (and Player 1 is not AI)
+      if (targetDebuffPlayerIdx === 0 && !next.players[1].isAI) {
+        const p2UnassignedClub = next.players[1].playedActions.find(
+          a => a.card.suit === 'clubs' && !a.isJokerAction && !a.clubSpecial && !a.targetActionId
+        );
+        const p1Eligible = next.players[0].playedActions.filter(
+          a => a.heartDeclaration !== 'heal' && a.finalPoints > 0
+        );
+        const p1HasEquipment = Boolean(next.players[0].minion?.equippedPermanent);
+
+        if (p2UnassignedClub && (p1Eligible.length > 0 || p1HasEquipment)) {
           next.pendingDebuffPlayerIndex = 1;
           next.pendingDebuffActionId = p2UnassignedClub.id;
           setPendingAssignDebuffAction({
@@ -1073,8 +1070,17 @@ export default function App() {
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const targetDebuffPlayerIdx = next.pendingDebuffPlayerIndex ?? pendingAssignDebuffAction?.playerIndex ?? 0;
+      const targetDebuffActionId = next.pendingDebuffActionId ?? pendingAssignDebuffAction?.actionId;
       const oppIdx = targetDebuffPlayerIdx === 0 ? 1 : 0;
       const opp = next.players[oppIdx];
+
+      if (targetDebuffActionId) {
+        const actingPlayer = next.players[targetDebuffPlayerIdx];
+        const act = actingPlayer?.playedActions.find(a => a.id === targetDebuffActionId);
+        if (act) {
+          act.targetActionId = 'destroy_equipment';
+        }
+      }
 
       if (opp.minion?.equippedPermanent) {
         const destroyed = opp.minion.equippedPermanent.card;
@@ -1086,6 +1092,28 @@ export default function App() {
       setPendingAssignDebuffAction(null);
       next.pendingDebuffPlayerIndex = null;
       next.pendingDebuffActionId = null;
+
+      // Only check Player 1 if Player 0 just finished (and Player 1 is not AI)
+      if (targetDebuffPlayerIdx === 0 && !next.players[1].isAI) {
+        const p2UnassignedClub = next.players[1].playedActions.find(
+          a => a.card.suit === 'clubs' && !a.isJokerAction && !a.clubSpecial && !a.targetActionId
+        );
+        const p1Eligible = next.players[0].playedActions.filter(
+          a => a.heartDeclaration !== 'heal' && a.finalPoints > 0
+        );
+        const p1HasEquipment = Boolean(next.players[0].minion?.equippedPermanent);
+
+        if (p2UnassignedClub && (p1Eligible.length > 0 || p1HasEquipment)) {
+          next.pendingDebuffPlayerIndex = 1;
+          next.pendingDebuffActionId = p2UnassignedClub.id;
+          setPendingAssignDebuffAction({
+            playerIndex: 1,
+            actionId: p2UnassignedClub.id,
+          });
+          broadcastGameState(next);
+          return next;
+        }
+      }
 
       const { updatedState } = resolveCombatRound(next);
       updatedState.phase = 'resolution';
@@ -1884,13 +1912,17 @@ export default function App() {
       {(() => {
         const pendingIdx = gameState.pendingDebuffPlayerIndex ?? pendingAssignDebuffAction?.playerIndex;
         const pendingActionId = gameState.pendingDebuffActionId ?? pendingAssignDebuffAction?.actionId;
-        if (pendingIdx === undefined || pendingIdx === null || !pendingActionId) return null;
+        if (pendingIdx === undefined || pendingIdx === null) return null;
 
         if (pendingIdx === localPlayerIndex) {
           const actingPlayer = gameState.players[pendingIdx];
           const targetOpponent = gameState.players[pendingIdx === 0 ? 1 : 0];
-          const clubAct = actingPlayer.playedActions.find(a => a.id === pendingActionId);
-          if (!clubAct) return null;
+          const clubAct = (pendingActionId ? actingPlayer?.playedActions.find(a => a.id === pendingActionId) : undefined) ||
+            actingPlayer?.playedActions.find(a => a.card.suit === 'clubs' && !a.isJokerAction && !a.clubSpecial);
+          
+          if (!clubAct) {
+            return null;
+          }
 
           return (
             <AssignDebuffModal
@@ -1913,7 +1945,14 @@ export default function App() {
                 <p className="text-xs text-stone-300 mt-2">
                   {oppName} played a Club Debuff earlier and is now selecting which of your cards to weaken before attacks clash!
                 </p>
-                <span className="text-[10px] text-stone-500 mt-4">Combat resolution will begin immediately after.</span>
+                <span className="text-[10px] text-stone-500 mt-4 mb-3">Combat resolution will begin immediately after.</span>
+                <button
+                  onClick={() => handleConfirmDebuffTarget(undefined)}
+                  className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 border border-emerald-500/40 text-emerald-300 font-bold text-xs cursor-pointer shadow transition-all active:scale-95 flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Auto-Resolve Combat Now</span>
+                </button>
               </div>
             </div>
           );
