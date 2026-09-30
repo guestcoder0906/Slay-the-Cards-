@@ -57,6 +57,7 @@ interface TableBoardProps {
   onRequestClubTarget: (card: Card) => void;
   onRequestDiamondTarget: (card: Card) => void;
   onActivateMinionDiamond?: (targetActionId: string) => void;
+  onSetFighterDiamondBoost?: (actionId: string) => void;
 }
 
 export const TableBoard: React.FC<TableBoardProps> = ({
@@ -80,6 +81,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   onRequestClubTarget,
   onRequestDiamondTarget,
   onActivateMinionDiamond,
+  onSetFighterDiamondBoost,
 }) => {
   const opponentIndex = localPlayerIndex === 0 ? 1 : 0;
   const player = gameState.players[localPlayerIndex];
@@ -183,11 +185,25 @@ export const TableBoard: React.FC<TableBoardProps> = ({
     }
   });
 
-  const hasOppAttackActions = opponent.playedActions.some(a => a.card.suit === 'spades' && !a.isJokerAction);
-  const totalOppAttack = hasOppAttackActions
-    ? oppRawAttackPoints + oppMinionAttackBonus
-    : (oppMinionAttackBonus > 0 ? oppMinionAttackBonus : oppRawAttackPoints);
-  const totalOppBlock = oppBlockPoints + oppMinionPassiveShield;
+  // Opponent Fighter Passives
+  const oppFighterAttackBonus = opponent.fighter?.affinity === 'spades' ? 1 : 0;
+  const oppFighterShieldBonus = opponent.fighter?.affinity === 'hearts' ? 1 : 0;
+  if (oppFighterAttackBonus > 0) {
+    oppSpecialEffects.push('🗡️ Spades Fighter (+1 Passive Attack each round)');
+  }
+  if (oppFighterShieldBonus > 0) {
+    oppSpecialEffects.push('🛡️ Hearts Fighter (+1 Passive Shield each round)');
+  }
+  if (opponent.fighter?.affinity === 'diamonds') {
+    oppSpecialEffects.push('⚡ Diamonds Fighter (+1 Boost to chosen action)');
+  }
+  if (opponent.fighter?.affinity === 'clubs') {
+    oppDebuffPoints += 1;
+    oppSpecialEffects.push('✂️ Clubs Fighter (+1 Passive Debuff each round)');
+  }
+
+  const totalOppAttack = oppRawAttackPoints + oppMinionAttackBonus + oppFighterAttackBonus;
+  const totalOppBlock = oppBlockPoints + oppMinionPassiveShield + oppFighterShieldBonus;
 
   // Check if player played Joker (negating opponent attacks)
   const isOppAttackNegatedByPlayerJoker = player.playedActions.some(a => a.isJokerAction);
@@ -200,6 +216,23 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   let playerHealPoints = 0;
   let playerDebuffPoints = 0;
   const playerSpecialEffects: string[] = [];
+
+  // Player Fighter Passives
+  const playerFighterAttackBonus = player.fighter?.affinity === 'spades' ? 1 : 0;
+  const playerFighterShieldBonus = player.fighter?.affinity === 'hearts' ? 1 : 0;
+  if (playerFighterAttackBonus > 0) {
+    playerSpecialEffects.push('🗡️ Spades Fighter (+1 Passive Attack each round)');
+  }
+  if (playerFighterShieldBonus > 0) {
+    playerSpecialEffects.push('🛡️ Hearts Fighter (+1 Passive Shield each round)');
+  }
+  if (player.fighter?.affinity === 'diamonds') {
+    playerSpecialEffects.push('⚡ Diamonds Fighter (+1 Boost to chosen action)');
+  }
+  if (player.fighter?.affinity === 'clubs') {
+    playerDebuffPoints += 1;
+    playerSpecialEffects.push('✂️ Clubs Fighter (+1 Passive Debuff each round)');
+  }
 
   // Player Minion effects
   let playerMinionAttackBonus = 0;
@@ -523,13 +556,19 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             </div>
 
             {opponent.fighter ? (
-              <div className="relative">
+              <div className="relative flex flex-col items-center">
                 <CardView
                   card={opponent.fighter.card}
                   hp={opponent.fighter.hp}
                   maxHp={opponent.fighter.maxHp}
                   size="md"
                 />
+                <span className="mt-1.5 text-[9px] px-2 py-0.5 rounded-full font-black bg-stone-900 border border-amber-500/40 text-amber-300 text-center shadow-sm">
+                  {opponent.fighter.affinity === 'spades' && '⚔️ Passive: +1 Attack'}
+                  {opponent.fighter.affinity === 'hearts' && '🛡️ Passive: +1 Shield'}
+                  {opponent.fighter.affinity === 'diamonds' && '⚡ Passive: +1 Boost'}
+                  {opponent.fighter.affinity === 'clubs' && '✂️ Passive: +1 Debuff'}
+                </span>
               </div>
             ) : (
               <div className="w-24 h-36 border-2 border-dashed border-stone-800 rounded-xl flex items-center justify-center text-stone-600 text-xs text-center p-2">
@@ -1117,13 +1156,19 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             </div>
 
             {player.fighter && (
-              <div className="relative">
+              <div className="relative flex flex-col items-center">
                 <CardView
                   card={player.fighter.card}
                   hp={player.fighter.hp}
                   maxHp={player.fighter.maxHp}
                   size="md"
                 />
+                <span className="mt-1.5 text-[9px] px-2 py-0.5 rounded-full font-black bg-stone-900 border border-amber-500/40 text-amber-300 text-center shadow-sm">
+                  {player.fighter.affinity === 'spades' && '⚔️ Passive: +1 Attack'}
+                  {player.fighter.affinity === 'hearts' && '🛡️ Passive: +1 Shield'}
+                  {player.fighter.affinity === 'diamonds' && '⚡ Passive: +1 Boost'}
+                  {player.fighter.affinity === 'clubs' && '✂️ Passive: +1 Debuff'}
+                </span>
               </div>
             )}
           </div>
@@ -1384,6 +1429,32 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                           <Zap className="w-2.5 h-2.5 fill-current" />
                           <span>+{player.minion.equippedPermanent.tierPoints} Boost (1⚡)</span>
                         </button>
+                      )}
+
+                    {/* Diamond Fighter Passive (+1 Free Boost) Switch Button */}
+                    {player.fighter?.affinity === 'diamonds' &&
+                      action.heartDeclaration !== 'heal' &&
+                      !action.isJokerAction &&
+                      action.card.suit !== 'diamonds' &&
+                      !isFaceCard(action.card.rank) && (
+                        action.fighterBoostedPoints === 1 ? (
+                          <span
+                            className="mt-1 text-[9px] px-2 py-0.5 rounded-md font-black bg-amber-400 text-stone-950 flex items-center gap-0.5 shadow-sm ring-1 ring-amber-300"
+                            title="This card is receiving your Champion Fighter's +1 Diamond Passive Boost (0⚡)"
+                          >
+                            <Zap className="w-2.5 h-2.5 fill-current" />
+                            <span>+1 Fighter Boost</span>
+                          </span>
+                        ) : isMyTurn && onSetFighterDiamondBoost ? (
+                          <button
+                            onClick={() => onSetFighterDiamondBoost(action.id)}
+                            className="mt-1 text-[9px] px-2 py-0.5 rounded-md font-bold bg-stone-800 hover:bg-amber-950 border border-amber-500/40 hover:border-amber-400 text-amber-300 flex items-center gap-0.5 transition-all cursor-pointer active:scale-95"
+                            title="Click to transfer your Champion Fighter's free +1 Diamond Passive Boost to this card"
+                          >
+                            <Zap className="w-2.5 h-2.5" />
+                            <span>Set +1 Boost (0⚡)</span>
+                          </button>
+                        ) : null
                       )}
                   </div>
                 ))}

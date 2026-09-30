@@ -21,6 +21,7 @@ export interface PlayedActionCard {
   energyCost: number;
   basePoints: number;
   boostedPoints: number;
+  fighterBoostedPoints?: number;
   debuffedPoints: number;
   finalPoints: number;
   heartDeclaration?: HeartDeclaration;

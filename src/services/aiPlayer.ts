@@ -142,6 +142,14 @@ export class AIPlayerService {
     let opponentPassiveShield = 0;
     let opponentTemporaryBlocks = 0;
 
+    // Fighter passives
+    if (opponentState.fighter?.affinity === 'spades') {
+      incomingOpponentAttack += 1;
+    }
+    if (opponentState.fighter?.affinity === 'hearts') {
+      opponentPassiveShield += 1;
+    }
+
     if (opponentState.minion?.equippedPermanent?.suit === 'hearts') {
       opponentPassiveShield += opponentState.minion.equippedPermanent.tierPoints;
     }
@@ -164,9 +172,10 @@ export class AIPlayerService {
     const aiTotalHp = (aiState.minion?.hp || 0) + (aiState.fighter?.hp || 3);
 
     // AI's own passive defense
-    const aiPassiveShield = aiState.minion?.equippedPermanent?.suit === 'hearts'
-      ? aiState.minion.equippedPermanent.tierPoints
-      : 0;
+    let aiPassiveShield = aiState.fighter?.affinity === 'hearts' ? 1 : 0;
+    if (aiState.minion?.equippedPermanent?.suit === 'hearts') {
+      aiPassiveShield += aiState.minion.equippedPermanent.tierPoints;
+    }
 
     // -------------------------------------------------------------
     // PRIORITY 1: EMERGENCY JOKER (LETHAL DENIAL)
@@ -231,6 +240,18 @@ export class AIPlayerService {
       }
     }
 
+    const upgradeableAttack = potentialAttackCards.find(c => !isFaceCard(c.rank));
+
+    // Inherent Spades Fighter passive (+1 Attack damage)
+    if (aiState.fighter?.affinity === 'spades') {
+      potentialAttackPoints += 1;
+    }
+
+    // Inherent Diamonds Fighter passive (+1 to chosen attack)
+    if (aiState.fighter?.affinity === 'diamonds' && upgradeableAttack) {
+      potentialAttackPoints += 1;
+    }
+
     // Passive spade equipment boost
     if (potentialAttackCards.length > 0 && aiState.minion?.equippedPermanent?.suit === 'spades') {
       potentialAttackPoints += aiState.minion.equippedPermanent.tierPoints;
@@ -238,7 +259,6 @@ export class AIPlayerService {
 
     // Check if Diamond overcharge can push over the finish line (only if round > 1 and there is a non-face attack)
     let diamondBoostCard: Card | null = null;
-    const upgradeableAttack = potentialAttackCards.find(c => !isFaceCard(c.rank));
     if (roundNumber > 1 && upgradeableAttack && currentEnergy - attackEnergyNeeded >= 1) {
       for (const d of diamondCardsInHand) {
         const cost = getCardEnergyCost(d);

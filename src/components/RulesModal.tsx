@@ -68,13 +68,21 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 </p>
               </div>
               <div className="p-4 bg-stone-950 rounded-xl border border-stone-800 space-y-2">
-                <h4 className="font-bold text-amber-300">Fighters & Affinity</h4>
+                <h4 className="font-bold text-amber-300">Fighters, Affinity & Suit Passives</h4>
                 <p className="text-xs">
-                  Each player selects 1 card from their starting hand to serve as their <strong>Fighter</strong> and places it face-up on the table.
+                  Each player selects 1 card from their starting hand to serve as their <strong>Champion Fighter</strong> and places it face-up on the table.
                 </p>
                 <ul className="text-xs list-disc list-inside space-y-1 text-stone-300">
                   <li><strong>Numbered Fighters (Aces through 10)</strong>: 3 starting Health.</li>
                   <li><strong>Face Card Fighters (Jack, Queen, King)</strong>: 4 starting Health.</li>
+                  <li><strong>Automatic Suit Passives (0 Energy, Every Round)</strong>:
+                    <ul className="list-disc list-inside pl-4 space-y-0.5 text-stone-400 mt-1">
+                      <li><strong className="text-slate-200">Spades Fighter (♠)</strong>: Deals <strong>+1 passive Attack damage</strong> automatically each round.</li>
+                      <li><strong className="text-rose-400">Hearts Fighter (♥)</strong>: Grants <strong>+1 passive Shield</strong> each round, absorbing 1 incoming damage.</li>
+                      <li><strong className="text-amber-400">Diamonds Fighter (♦)</strong>: Grants a <strong>+1 passive Boost</strong> to choose which played action to apply to each round.</li>
+                      <li><strong className="text-emerald-400">Clubs Fighter (♣)</strong>: Applies <strong>+1 passive Debuff</strong> to nullify 1 point from opponent's highest action each round.</li>
+                    </ul>
+                  </li>
                   <li><strong>Affinity</strong>: Your Fighter's printed suit determines your Affinity. You may play multiple cards matching your Fighter's suit per round! You are strictly limited to playing at most 1 action card and optionally 1 minion card (if Ace) per round of any non-matching suit. Minions can only attach a permanent same to their suit. You cannot use upgrade cards (Diamond Action Overcharges or Minion Equipment Permanents) during the 1st round of the game.</li>
                 </ul>
               </div>

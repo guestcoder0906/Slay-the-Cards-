@@ -30,9 +30,8 @@ export const SetupFighterModal: React.FC<SetupFighterModalProps> = ({ hand, onSe
         </div>
         <p className="text-stone-300 text-sm text-center max-w-xl mb-4">
           Choose 1 card from your starting hand to lead your board as your <strong className="text-amber-300">Fighter</strong>.
-          Face Cards (J, Q, K) boast <span className="text-emerald-400 font-bold">4 starting HP</span>.
-          Numbered cards have <span className="text-emerald-400 font-bold">3 starting HP</span>.
-          Your Fighter's suit establishes your <strong className="text-amber-300">Affinity</strong> (no limit on matching suit actions!).
+          Face Cards boast <span className="text-emerald-400 font-bold">4 starting HP</span> (Numbered cards have <span className="text-emerald-400 font-bold">3 HP</span>).
+          Each Fighter grants an <strong className="text-amber-300">automatic +1 Suit Passive</strong> each round (0⚡) and unlocks unlimited matching-suit action plays!
         </p>
 
         {/* Card Options */}
@@ -42,6 +41,15 @@ export const SetupFighterModal: React.FC<SetupFighterModalProps> = ({ hand, onSe
             const hp = getFighterMaxHealth(card.rank);
             const isFace = isFaceCard(card.rank);
             const theme = SUIT_THEMES[card.suit];
+
+            const passiveLabel =
+              card.suit === 'spades'
+                ? '⚔️ +1 Passive Attack'
+                : card.suit === 'hearts'
+                ? '🛡️ +1 Passive Shield'
+                : card.suit === 'diamonds'
+                ? '⚡ +1 Action Boost'
+                : '✂️ +1 Passive Debuff';
 
             return (
               <div
@@ -63,6 +71,9 @@ export const SetupFighterModal: React.FC<SetupFighterModalProps> = ({ hand, onSe
                   <div className="text-[11px] text-stone-400 mt-0.5">
                     {SUIT_SYMBOLS[card.suit]} {SUIT_NAMES[card.suit]}
                   </div>
+                  <div className="text-[9px] font-bold text-amber-300/90 mt-1 px-1.5 py-0.5 rounded bg-stone-900 border border-amber-500/30">
+                    {passiveLabel}
+                  </div>
                 </div>
               </div>
             );
@@ -78,7 +89,13 @@ export const SetupFighterModal: React.FC<SetupFighterModalProps> = ({ hand, onSe
               </div>
               <div className="text-xs text-stone-300 mt-0.5">
                 Starting Health: <strong className="text-emerald-400">{getFighterMaxHealth(selectedCard.rank)} HP</strong> |
-                Affinity: <strong className="text-amber-300">{SUIT_NAMES[selectedCard.suit]} ({SUIT_THEMES[selectedCard.suit].role})</strong>
+                Affinity: <strong className="text-amber-300">{SUIT_NAMES[selectedCard.suit]} ({SUIT_THEMES[selectedCard.suit].role})</strong> |
+                Passive: <strong className="text-emerald-400">
+                  {selectedCard.suit === 'spades' && '+1 Passive Attack every round'}
+                  {selectedCard.suit === 'hearts' && '+1 Passive Shield every round'}
+                  {selectedCard.suit === 'diamonds' && '+1 Boost to chosen action every round'}
+                  {selectedCard.suit === 'clubs' && '+1 Passive Debuff against opponent every round'}
+                </strong>
               </div>
             </div>
             <button

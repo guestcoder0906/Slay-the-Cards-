@@ -34,12 +34,34 @@ export function resolveCombatRound(currentState: GameState): {
   }
 
   // -------------------------------------------------------------
-  // STEP 1: CLUBS DISRUPTIONS & HAND CONTROL
+  // STEP 1: CLUBS DISRUPTIONS & HAND CONTROL (INCLUDING CLUBS FIGHTER PASSIVE)
   // -------------------------------------------------------------
   [
     { source: p1, target: p2 },
     { source: p2, target: p1 },
   ].forEach(({ source, target }) => {
+    // 1A. Clubs Champion Fighter Passive (+1 Debuff automatically each round with 0 Energy)
+    if (source.fighter?.affinity === 'clubs') {
+      const eligible = target.playedActions
+        .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
+        .sort((a, b) => b.finalPoints - a.finalPoints);
+      if (eligible.length > 0) {
+        const targetAction = eligible[0];
+        targetAction.debuffedPoints += 1;
+        targetAction.finalPoints = Math.max(0, targetAction.finalPoints - 1);
+
+        logs.push({
+          id: `club_fighter_passive_${source.id}_${Date.now()}`,
+          phase: 'clubs',
+          title: `${source.name}'s Clubs Champion Passive Activated!`,
+          description: `Inherent +1 Club Debuff nullified 1 point from ${target.name}'s ${targetAction.card.name}!`,
+          sourcePlayerId: source.id,
+          targetPlayerId: target.id,
+          amount: 1,
+        });
+      }
+    }
+
     source.playedActions.forEach(action => {
       if (action.card.suit === 'clubs' && !action.isJokerAction) {
         const points = action.finalPoints;
@@ -136,10 +158,14 @@ export function resolveCombatRound(currentState: GameState): {
   });
 
   // -------------------------------------------------------------
-  // STEP 2: DEFENSE CALCULATION (PASSIVE SHIELDS & DECLARED HEART BLOCKS)
+  // STEP 2: DEFENSE CALCULATION (HEARTS FIGHTER PASSIVE & DECLARED HEART BLOCKS)
   // -------------------------------------------------------------
   const calculateDefense = (player: PlayerState) => {
     let passiveShield = 0;
+    // Inherent Hearts Champion Fighter Passive (+1 Shield every round for 0 Energy)
+    if (player.fighter?.affinity === 'hearts') {
+      passiveShield += 1;
+    }
     // Vertically equipped Heart on minion
     if (player.minion?.equippedPermanent?.suit === 'hearts') {
       passiveShield += player.minion.equippedPermanent.tierPoints;
@@ -174,6 +200,19 @@ export function resolveCombatRound(currentState: GameState): {
         hasAttack = true;
       }
     });
+
+    // Inherent Spades Champion Fighter Passive (+1 Attack every round for 0 Energy)
+    if (attacker.fighter?.affinity === 'spades') {
+      attackPoints += 1;
+      logs.push({
+        id: `spade_fighter_passive_${attacker.id}_${Date.now()}`,
+        phase: 'damage',
+        title: `${attacker.name}'s Spades Champion Passive Activated!`,
+        description: `Inherent +1 passive Attack damage dealt!`,
+        sourcePlayerId: attacker.id,
+        amount: 1,
+      });
+    }
 
     // Vertically equipped Spade on minion gives passive attack bonus IF attacker attacks
     if (hasAttack && attacker.minion?.equippedPermanent?.suit === 'spades') {

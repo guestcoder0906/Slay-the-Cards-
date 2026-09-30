@@ -774,6 +774,19 @@ export default function App() {
               }
             });
 
+            // AI Diamond Champion Fighter Passive: Inherent +1 Boost to chosen action (0⚡)
+            if (aiState.fighter?.affinity === 'diamonds') {
+              const hasFighterBoost = aiState.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
+              if (!hasFighterBoost && nonDiamondActions.length > 0) {
+                const eligible = nonDiamondActions.filter(a => !isFaceCard(a.card.rank));
+                if (eligible.length > 0) {
+                  const target = eligible.find(a => a.card.suit === 'spades') || eligible[0];
+                  target.fighterBoostedPoints = 1;
+                  target.finalPoints += 1;
+                }
+              }
+            }
+
             setIsAiThinking(false);
             aiState.isReadyForRound = true;
 
@@ -863,6 +876,20 @@ export default function App() {
         return next;
       }
 
+      // Inherent Diamond Champion Fighter Passive (+1 Boost to chosen action for 0 Energy)
+      let fighterBoost = 0;
+      if (
+        player.fighter?.affinity === 'diamonds' &&
+        card.suit !== 'diamonds' &&
+        !card.isJoker &&
+        !isFaceCard(card.rank)
+      ) {
+        const hasExistingFighterBoost = player.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
+        if (!hasExistingFighterBoost) {
+          fighterBoost = 1;
+        }
+      }
+
       const action: PlayedActionCard = {
         id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         card,
@@ -870,8 +897,9 @@ export default function App() {
         energyCost: cost,
         basePoints: basePts,
         boostedPoints: 0,
+        fighterBoostedPoints: fighterBoost,
         debuffedPoints: 0,
-        finalPoints: basePts,
+        finalPoints: basePts + fighterBoost,
         heartDeclaration: heartDec,
         targetActionId,
         isJokerAction: card.isJoker,
@@ -879,6 +907,13 @@ export default function App() {
 
       player.playedActions.push(action);
       sounds.playCardPlace();
+
+      // Joker effect: resets energy to 4 for this round only, costs 0 energy
+      if (card.isJoker) {
+        player.hasUsedJoker = true;
+        player.energy = 4;
+        player.maxEnergy = 4;
+      }
 
       // Check if player has any unattached Diamond cards on the table waiting for a target (Face cards cannot be upgraded)
       if (card.suit !== 'diamonds' && !card.isJoker && !isFaceCard(card.rank) && action.heartDeclaration !== 'heal') {
@@ -1008,6 +1043,31 @@ export default function App() {
       targetAction.boostedPoints += tierPoints;
       targetAction.finalPoints += tierPoints;
       sounds.playBuff();
+
+      broadcastGameState(next);
+      return next;
+    });
+  };
+
+  const handleSetFighterDiamondBoost = (actionId: string) => {
+    setGameState(prev => {
+      if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') return prev;
+      const next: GameState = JSON.parse(JSON.stringify(prev));
+      const player = next.players[localPlayerIndex];
+      if (player.fighter?.affinity !== 'diamonds') return prev;
+
+      player.playedActions.forEach(a => {
+        if (a.id === actionId && !isFaceCard(a.card.rank) && a.heartDeclaration !== 'heal' && !a.isJokerAction && a.card.suit !== 'diamonds') {
+          if (!a.fighterBoostedPoints) {
+            a.fighterBoostedPoints = 1;
+            a.finalPoints += 1;
+            sounds.playBuff();
+          }
+        } else if (a.fighterBoostedPoints) {
+          a.finalPoints = Math.max(0, a.finalPoints - a.fighterBoostedPoints);
+          a.fighterBoostedPoints = 0;
+        }
+      });
 
       broadcastGameState(next);
       return next;
@@ -1626,6 +1686,7 @@ export default function App() {
             setPendingDiamondCard(card);
           }}
           onActivateMinionDiamond={handleActivateMinionDiamond}
+          onSetFighterDiamondBoost={handleSetFighterDiamondBoost}
         />
       </main>
 
