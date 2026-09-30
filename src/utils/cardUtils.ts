@@ -108,6 +108,8 @@ export function getCardEnergyCost(card: Card): number {
   if (card.rank === 'Joker') return 2;
   // King of Diamonds costs only 2 points / Energy
   if (card.suit === 'diamonds' && card.rank === 13) return 2;
+  // King of Clubs costs only 2 Energy
+  if (card.suit === 'clubs' && card.rank === 13) return 2;
   if (card.rank >= 1 && card.rank <= 10) return 1;
   if (card.rank === 11 || card.rank === 12) return 2;
   if (card.rank === 13) return 3;

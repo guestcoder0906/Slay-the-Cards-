@@ -406,6 +406,24 @@ export class AIPlayerService {
               currentEnergy -= 2;
               break;
             }
+
+            // King of clubs: Grand Heist (steal & play opponent's highest value card, costs 2 Energy)
+            if (club.rank === 13 && opponentState.hand.length > 0 && currentEnergy >= 2) {
+              const sortedOppHand = [...opponentState.hand].sort(
+                (a, b) => getUniversalPoints(b) - getUniversalPoints(a)
+              );
+              const targetCard = sortedOppHand[0];
+              onPlayAction({
+                card: club,
+                orientation: 'horizontal',
+                energyCost: 2,
+                clubSpecial: { type: 'king', targetCardId: targetCard.id, stolenCard: targetCard },
+              });
+              const idx = hand.findIndex(c => c.id === club.id);
+              if (idx >= 0) hand.splice(idx, 1);
+              currentEnergy -= 2;
+              break;
+            }
           }
         }
       }

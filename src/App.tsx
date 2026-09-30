@@ -1896,12 +1896,13 @@ export default function App() {
                 }
 
                 const clubPts = getUniversalPoints(pendingClubCard);
+                const cost = getCardEnergyCost(pendingClubCard);
                 // Add the King of Clubs card itself to playedActions!
                 player.playedActions.push({
                   id: `act_king_${Date.now()}`,
                   card: pendingClubCard,
                   orientation: 'horizontal',
-                  energyCost: 3,
+                  energyCost: cost,
                   basePoints: clubPts,
                   boostedPoints: 0,
                   debuffedPoints: 0,
@@ -1917,7 +1918,7 @@ export default function App() {
                 }
 
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
-                player.energy -= 3;
+                player.energy -= cost;
               } else {
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= 1;

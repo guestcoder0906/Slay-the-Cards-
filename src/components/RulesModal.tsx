@@ -115,7 +115,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 <ul className="text-xs list-disc list-inside space-y-1 text-stone-300">
                   <li>Numbered cards (Aces through 10): <strong>1 Energy</strong></li>
                   <li>Jacks & Queens: <strong>2 Energy</strong></li>
-                  <li>Kings: <strong>3 Energy</strong> (King of Diamonds costs only <strong>2 Energy / points</strong>)</li>
+                  <li>Kings: <strong>3 Energy</strong> (King of Diamonds and King of Clubs cost only <strong>2 Energy</strong>).</li>
                   <li>Joker: <strong>2 Energy</strong> (Can only be used once per player; makes opponent unable to attack this round).</li>
                   <li>Fighter setup: <strong>0 Energy</strong></li>
                   <li>Minion permanent equipment: <strong>2 Energy</strong></li>
