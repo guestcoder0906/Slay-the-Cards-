@@ -236,9 +236,10 @@ export class AIPlayerService {
       potentialAttackPoints += aiState.minion.equippedPermanent.tierPoints;
     }
 
-    // Check if Diamond overcharge can push over the finish line (only if round > 1)
+    // Check if Diamond overcharge can push over the finish line (only if round > 1 and there is a non-face attack)
     let diamondBoostCard: Card | null = null;
-    if (roundNumber > 1 && potentialAttackCards.length > 0 && currentEnergy - attackEnergyNeeded >= 1) {
+    const upgradeableAttack = potentialAttackCards.find(c => !isFaceCard(c.rank));
+    if (roundNumber > 1 && upgradeableAttack && currentEnergy - attackEnergyNeeded >= 1) {
       for (const d of diamondCardsInHand) {
         const cost = getCardEnergyCost(d);
         if (attackEnergyNeeded + cost <= currentEnergy) {
@@ -267,14 +268,14 @@ export class AIPlayerService {
         currentEnergy -= cost;
       }
 
-      // If Diamond boost needed, apply it to the first attack
-      if (diamondBoostCard) {
+      // If Diamond boost needed, apply it to the upgradeable attack
+      if (diamondBoostCard && upgradeableAttack) {
         const dCost = getCardEnergyCost(diamondBoostCard);
         onPlayAction({
           card: diamondBoostCard,
           orientation: 'horizontal',
           energyCost: dCost,
-          targetActionId: potentialAttackCards[0].id,
+          targetActionId: upgradeableAttack.id,
         });
         const dIdx = hand.findIndex(c => c.id === diamondBoostCard.id);
         if (dIdx >= 0) hand.splice(dIdx, 1);
@@ -568,7 +569,7 @@ export class AIPlayerService {
       roundNumber > 1
     ) {
       const eligibleTargets = playedActions.filter(
-        a => a.heartDeclaration !== 'heal' && !a.isJokerAction
+        a => a.heartDeclaration !== 'heal' && !a.isJokerAction && a.card.suit !== 'diamonds' && !isFaceCard(a.card.rank)
       );
       if (eligibleTargets.length > 0) {
         // Prioritize Spades attacks, then blocks/debuffs

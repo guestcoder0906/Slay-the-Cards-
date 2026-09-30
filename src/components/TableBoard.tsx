@@ -1364,11 +1364,13 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                         </button>
                       )}
 
-                    {/* Direct 1-Click Diamond Engine Booster Button */}
+                    {/* Direct 1-Click Diamond Engine Booster Button (Numbered cards only, Face cards cannot be upgraded) */}
                     {player.minion?.equippedPermanent?.suit === 'diamonds' &&
                       isMyTurn &&
                       action.heartDeclaration !== 'heal' &&
-                      !action.isJokerAction && (
+                      !action.isJokerAction &&
+                      action.card.suit !== 'diamonds' &&
+                      !isFaceCard(action.card.rank) && (
                         <button
                           disabled={player.energy < 1}
                           onClick={() => onActivateMinionDiamond?.(action.id)}
@@ -1377,7 +1379,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                               ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 cursor-pointer active:scale-95 animate-pulse ring-1 ring-amber-300'
                               : 'bg-stone-800 text-stone-600 cursor-not-allowed'
                           }`}
-                          title={`Spend 1 Energy to boost this action by +${player.minion.equippedPermanent.tierPoints} Universal Value Points`}
+                          title={`Spend 1 Energy to boost this action by +${player.minion.equippedPermanent.tierPoints} Universal Value Points (Face cards cannot be upgraded)`}
                         >
                           <Zap className="w-2.5 h-2.5 fill-current" />
                           <span>+{player.minion.equippedPermanent.tierPoints} Boost (1⚡)</span>

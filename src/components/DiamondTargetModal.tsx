@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, PlayedActionCard } from '../types/game';
-import { getUniversalPoints } from '../utils/cardUtils';
+import { getUniversalPoints, isFaceCard } from '../utils/cardUtils';
 import { Zap } from 'lucide-react';
 
 interface DiamondTargetModalProps {
@@ -18,12 +18,13 @@ export const DiamondTargetModal: React.FC<DiamondTargetModalProps> = ({
 }) => {
   const points = getUniversalPoints(diamondCard);
 
-  // Eligible actions: not heal, not jokers, not diamonds, and not the diamond card itself
+  // Eligible actions: not heal, not jokers, not diamonds, not face cards (J, Q, K), and not the diamond card itself
   const eligibleActions = playedActions.filter(
     a =>
       a.heartDeclaration !== 'heal' &&
       !a.isJokerAction &&
       a.card.suit !== 'diamonds' &&
+      !isFaceCard(a.card.rank) &&
       a.card.id !== diamondCard.id
   );
 
@@ -33,16 +34,16 @@ export const DiamondTargetModal: React.FC<DiamondTargetModalProps> = ({
         <Zap className="w-8 h-8 text-amber-400 mb-1" />
         <h3 className="text-xl font-serif font-bold text-amber-400">Action Overcharge</h3>
         <p className="text-xs text-stone-300 text-center mb-4">
-          Diamonds grant an Action Overcharge. Choose one of your played actions to boost by{' '}
-          <strong className="text-amber-400">+{points} points</strong>.
+          Diamonds grant an Action Overcharge. Choose one of your played numbered actions (A–10) to boost by{' '}
+          <strong className="text-amber-400">+{points} points</strong>. (Face cards cannot be upgraded).
         </p>
 
         {eligibleActions.length === 0 ? (
           <div className="flex flex-col items-center gap-3 w-full my-2">
             <div className="text-stone-300 text-xs text-center p-4 bg-amber-950/40 border border-amber-600/40 rounded-xl w-full leading-relaxed">
-              ⚡ <strong>No upgradeable cards on table yet!</strong>
+              ⚡ <strong>No upgradeable numbered cards on table yet!</strong>
               <div className="text-stone-400 text-[11px] mt-1.5">
-                This +{points} Diamond Boost is saved on your battlefield and will <strong>automatically pop up</strong> right after you play an Attack, Block, or Debuff card!
+                This +{points} Diamond Boost is saved on your battlefield and will <strong>automatically pop up</strong> right after you play a numbered (A–10) Attack, Block, or Debuff card! (Face cards cannot be upgraded).
               </div>
             </div>
             <button

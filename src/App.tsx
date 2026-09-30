@@ -618,14 +618,13 @@ export default function App() {
               return;
             }
 
-            // If AI plays a Diamond card, boost the corresponding Spade attack or active action
+            // If AI plays a Diamond card, boost the corresponding Spade attack or active numbered action (Face cards cannot be upgraded)
             let storedTargetActionId = action.targetActionId;
             if (action.card.suit === 'diamonds' && !action.isJokerAction) {
               const targetAction = action.targetActionId
-                ? aiState.playedActions.find(a => a.id === action.targetActionId || a.card.id === action.targetActionId)
-                : aiState.playedActions.find(a => a.card.suit === 'spades') ||
-                  aiState.playedActions.find(a => a.heartDeclaration !== 'heal' && a.card.suit !== 'diamonds') ||
-                  aiState.playedActions[0];
+                ? aiState.playedActions.find(a => (a.id === action.targetActionId || a.card.id === action.targetActionId) && !isFaceCard(a.card.rank))
+                : aiState.playedActions.find(a => a.card.suit === 'spades' && !isFaceCard(a.card.rank)) ||
+                  aiState.playedActions.find(a => a.heartDeclaration !== 'heal' && a.card.suit !== 'diamonds' && !isFaceCard(a.card.rank));
               if (targetAction && targetAction.heartDeclaration !== 'heal') {
                 targetAction.boostedPoints += basePts;
                 targetAction.finalPoints += basePts;
@@ -683,7 +682,8 @@ export default function App() {
                 } else {
                   const sPts = getUniversalPoints(stolen);
                   if (stolen.suit === 'diamonds') {
-                    const targetAction = aiState.playedActions.find(a => a.card.suit === 'spades');
+                    const targetAction = aiState.playedActions.find(a => a.card.suit === 'spades' && !isFaceCard(a.card.rank)) ||
+                      aiState.playedActions.find(a => a.heartDeclaration !== 'heal' && a.card.suit !== 'diamonds' && !isFaceCard(a.card.rank));
                     if (targetAction) {
                       targetAction.boostedPoints += sPts;
                       targetAction.finalPoints += sPts;
@@ -880,8 +880,8 @@ export default function App() {
       player.playedActions.push(action);
       sounds.playCardPlace();
 
-      // Check if player has any unattached Diamond cards on the table waiting for a target
-      if (card.suit !== 'diamonds' && !card.isJoker) {
+      // Check if player has any unattached Diamond cards on the table waiting for a target (Face cards cannot be upgraded)
+      if (card.suit !== 'diamonds' && !card.isJoker && !isFaceCard(card.rank) && action.heartDeclaration !== 'heal') {
         const unassignedDiamond = player.playedActions.find(
           a => a.card.suit === 'diamonds' && !a.isJokerAction && !a.targetActionId
         );

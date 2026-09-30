@@ -100,19 +100,13 @@ export function getUniversalPoints(card: Card): number {
 /**
  * Energy costs:
  * Numbered cards (Aces through 10) cost 1 Energy.
- * Jacks and Queens cost 2 Energy.
- * Kings cost 3 Energy (King of Diamonds costs only 2 points / Energy).
+ * Face cards (Jacks, Queens, Kings) cost 2 Energy.
  * Joker costs 2 Energy.
  */
 export function getCardEnergyCost(card: Card): number {
   if (card.rank === 'Joker') return 2;
-  // King of Diamonds costs only 2 points / Energy
-  if (card.suit === 'diamonds' && card.rank === 13) return 2;
-  // King of Clubs costs only 2 Energy
-  if (card.suit === 'clubs' && card.rank === 13) return 2;
   if (card.rank >= 1 && card.rank <= 10) return 1;
-  if (card.rank === 11 || card.rank === 12) return 2;
-  if (card.rank === 13) return 3;
+  if (card.rank === 11 || card.rank === 12 || card.rank === 13) return 2;
   return 1;
 }
 

@@ -114,8 +114,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 </p>
                 <ul className="text-xs list-disc list-inside space-y-1 text-stone-300">
                   <li>Numbered cards (Aces through 10): <strong>1 Energy</strong></li>
-                  <li>Jacks & Queens: <strong>2 Energy</strong></li>
-                  <li>Kings: <strong>3 Energy</strong> (King of Diamonds and King of Clubs cost only <strong>2 Energy</strong>).</li>
+                  <li>Face cards (Jacks, Queens, Kings): <strong>2 Energy</strong> (e.g. King of Spades, King of Hearts, King of Diamonds, King of Clubs).</li>
                   <li>Joker: <strong>2 Energy</strong> (Can only be used once per player; makes opponent unable to attack this round).</li>
                   <li>Fighter setup: <strong>0 Energy</strong></li>
                   <li>Minion permanent equipment: <strong>2 Energy</strong></li>
@@ -146,7 +145,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 <div className="p-3 bg-stone-950 rounded-xl border border-amber-900/60 flex gap-3">
                   <Zap className="w-5 h-5 text-amber-500 shrink-0" />
                   <div>
-                    <strong className="text-amber-400">Diamonds (Action Overcharge)</strong>: Boosts another action card by its Universal Value Points.
+                    <strong className="text-amber-400">Diamonds (Action Overcharge)</strong>: Boosts another numbered action card (A–10) by its Universal Value Points. (Face cards cannot be upgraded/overcharged).
                   </div>
                 </div>
                 <div className="p-3 bg-stone-950 rounded-xl border border-emerald-900/60 flex gap-3">
