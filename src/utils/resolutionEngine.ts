@@ -19,7 +19,7 @@ export function resolveCombatRound(currentState: GameState): {
       id: `joker_p1_${Date.now()}`,
       phase: 'clubs',
       title: `${p1.name} Played Joker!`,
-      description: `The Joker casts an aura of stillness! ${p2.name} cannot attack this round.`,
+      description: `The Joker unlocked a maximum energy expansion to 4 for this round!`,
       sourcePlayerId: p1.id,
     });
   }
@@ -28,7 +28,7 @@ export function resolveCombatRound(currentState: GameState): {
       id: `joker_p2_${Date.now()}`,
       phase: 'clubs',
       title: `${p2.name} Played Joker!`,
-      description: `The Joker casts an aura of stillness! ${p1.name} cannot attack this round.`,
+      description: `The Joker unlocked a maximum energy expansion to 4 for this round!`,
       sourcePlayerId: p2.id,
     });
   }
@@ -187,9 +187,7 @@ export function resolveCombatRound(currentState: GameState): {
   // -------------------------------------------------------------
   // STEP 3: ATTACK RESOLUTION & DAMAGE TO MINIONS & FIGHTERS
   // -------------------------------------------------------------
-  const calculateTotalAttack = (attacker: PlayerState, isAttackerBlockedByJoker: boolean) => {
-    if (isAttackerBlockedByJoker) return 0;
-
+  const calculateTotalAttack = (attacker: PlayerState) => {
     let attackPoints = 0;
     let hasAttack = false;
 
@@ -231,8 +229,8 @@ export function resolveCombatRound(currentState: GameState): {
     return attackPoints;
   };
 
-  const p1IncomingAttack = calculateTotalAttack(p2, p1PlayedJoker);
-  const p2IncomingAttack = calculateTotalAttack(p1, p2PlayedJoker);
+  const p1IncomingAttack = calculateTotalAttack(p2);
+  const p2IncomingAttack = calculateTotalAttack(p1);
 
   // Apply damage with Minion first, then spillover to Fighter
   const applyDamage = (
@@ -438,6 +436,7 @@ export function resolveCombatRound(currentState: GameState): {
 
     // Energy resets to 3
     player.energy = 3;
+    player.maxEnergy = 3;
     player.isReadyForRound = false;
     player.hasUsedMinionDiamond = false;
   });

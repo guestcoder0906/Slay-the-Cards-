@@ -149,7 +149,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
   opponent.playedActions.forEach(action => {
     if (action.isJokerAction) {
-      oppSpecialEffects.push('🃏 Joker Aura (All your attacks negated this round!)');
+      oppSpecialEffects.push('🃏 Joker (+1 Max Energy, cap to 4)');
     }
     if (action.card.suit === 'spades' && !action.isJokerAction) {
       oppRawAttackPoints += action.finalPoints;
@@ -205,9 +205,6 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   const totalOppAttack = oppRawAttackPoints + oppMinionAttackBonus + oppFighterAttackBonus;
   const totalOppBlock = oppBlockPoints + oppMinionPassiveShield + oppFighterShieldBonus;
 
-  // Check if player played Joker (negating opponent attacks)
-  const isOppAttackNegatedByPlayerJoker = player.playedActions.some(a => a.isJokerAction);
-
   // -------------------------------------------------------------
   // PLAYER TELEMETRY: ATTACK, BLOCK, DEBUFF, MINION & CARD EFFECTS
   // -------------------------------------------------------------
@@ -261,7 +258,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
   player.playedActions.forEach(action => {
     if (action.isJokerAction) {
-      playerSpecialEffects.push('🃏 Joker Aura (All opponent attacks negated this round!)');
+      playerSpecialEffects.push('🃏 Joker (+1 Max Energy, cap to 4)');
     }
     if (action.card.suit === 'spades' && !action.isJokerAction) {
       playerRawAttackPoints += action.finalPoints;
@@ -304,9 +301,6 @@ export const TableBoard: React.FC<TableBoardProps> = ({
     ? playerRawAttackPoints + playerMinionAttackBonus
     : (playerMinionAttackBonus > 0 ? playerMinionAttackBonus : playerRawAttackPoints);
   const totalPlayerBlock = playerBlockPoints + playerMinionPassiveShield;
-
-  // Check if opponent played Joker (negating player attacks)
-  const isPlayerAttackNegatedByOpponentJoker = opponent.playedActions.some(a => a.isJokerAction);
 
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent, zone: 'action' | 'minion' | 'equipment') => {
@@ -511,7 +505,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
           {/* Opponent Energy Crystals */}
           <div className="flex items-center gap-1.5">
             <span className="text-stone-400 font-semibold mr-1">Energy:</span>
-            <span className="text-xs font-mono font-bold text-stone-300 mr-1">{opponent.energy}/3</span>
+            <span className="text-xs font-mono font-bold text-stone-300 mr-1">{opponent.energy}/{opponent.maxEnergy || 3}</span>
             {opponent.bankedCardId && (
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 mr-1"
@@ -633,19 +627,10 @@ export const TableBoard: React.FC<TableBoardProps> = ({
               <div className="flex flex-wrap items-center gap-1 text-[10px]">
                 {/* Attack Badge */}
                 <div
-                  className={`px-2 py-0.5 rounded-full font-black border flex items-center gap-1 ${
-                    isOppAttackNegatedByPlayerJoker
-                      ? 'bg-purple-950/70 border-purple-500/50 text-purple-300 line-through'
-                      : 'bg-rose-500/20 border-rose-500/50 text-rose-300'
-                  }`}
-                  title={
-                    isOppAttackNegatedByPlayerJoker
-                      ? 'Opponent attack negated by your Joker!'
-                      : `Total Attack: ${totalOppAttack} (${oppRawAttackPoints} from Spades + ${oppMinionAttackBonus} Minion bonus)`
-                  }
+                  className="px-2 py-0.5 rounded-full font-black border flex items-center gap-1 bg-rose-500/20 border-rose-500/50 text-rose-300"
+                  title={`Total Attack: ${totalOppAttack} (${oppRawAttackPoints} from Spades + ${oppMinionAttackBonus} Minion bonus)`}
                 >
                   ⚔️ {totalOppAttack} Atk
-                  {isOppAttackNegatedByPlayerJoker && <span className="text-[9px] no-underline">🚫 Joker</span>}
                 </div>
 
                 {/* Defense Badge */}
@@ -816,16 +801,16 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             {/* Joker Button */}
             {!player.hasUsedJoker && (
               <button
-                disabled={!isMyTurn || player.energy < 2}
+                disabled={!isMyTurn}
                 onClick={onTriggerJoker}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
-                  isMyTurn && player.energy >= 2
+                  isMyTurn
                     ? 'bg-purple-700 hover:bg-purple-600 text-white shadow-purple-900/40 cursor-pointer active:scale-95'
                     : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50'
                 }`}
-                title="Joker costs 2 Energy. Prevents opponent attacks this round! (Once per game)"
+                title="Joker costs 0 Energy. Expands max energy to 4 this round (used energy stays used, max energy is 4)! (Once per match)"
               >
-                <span>🃏 Play Joker (2⚡)</span>
+                <span>🃏 Play Joker (0⚡)</span>
               </button>
             )}
 
@@ -867,7 +852,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
         <div className="mb-3 px-1 text-xs">
           {isMyTurn ? (
             <p className="text-emerald-300/90 font-medium">
-              ⚡ You have <strong className="text-white font-bold">{player.energy}/3 Energy</strong> available.
+              ⚡ You have <strong className="text-white font-bold">{player.energy}/{player.maxEnergy || 3} Energy</strong> available.
               You may play <strong className="text-amber-300">multiple cards</strong> matching your {SUIT_NAMES[affinity]} affinity (or 1 non-matching action). Drag cards below or tap them to play!
             </p>
           ) : (
@@ -965,7 +950,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
 
                 let actionLabel = 'Play Action (Horizontal)';
                 if (selectedCardForAction.isJoker) {
-                  actionLabel = 'Play Joker Aura';
+                  actionLabel = 'Play Joker (+1 Max Energy)';
                 } else if (selectedCardForAction.suit === 'clubs') {
                   actionLabel = 'Play Disruption / Debuff';
                 } else if (selectedCardForAction.suit === 'hearts') {
@@ -1114,7 +1099,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
           {/* Player Energy Crystals */}
           <div className="flex items-center gap-2">
             <span className="text-stone-300 font-bold">Energy:</span>
-            <span className="text-xs font-mono font-black text-white">{player.energy}/3</span>
+            <span className="text-xs font-mono font-black text-white">{player.energy}/{player.maxEnergy || 3}</span>
             {player.bankedCardId && (
               <span
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 shadow-sm flex items-center gap-1"
@@ -1302,19 +1287,10 @@ export const TableBoard: React.FC<TableBoardProps> = ({
               <div className="flex flex-wrap items-center gap-1 text-[10px]">
                 {/* Attack Badge */}
                 <div
-                  className={`px-2 py-0.5 rounded-full font-black border flex items-center gap-1 ${
-                    isPlayerAttackNegatedByOpponentJoker
-                      ? 'bg-purple-950/70 border-purple-500/50 text-purple-300 line-through'
-                      : 'bg-rose-500/20 border-rose-500/50 text-rose-300'
-                  }`}
-                  title={
-                    isPlayerAttackNegatedByOpponentJoker
-                      ? 'Your attack is negated by opponent Joker!'
-                      : `Total Attack: ${totalPlayerAttack} (${playerRawAttackPoints} from Spades + ${playerMinionAttackBonus} Minion bonus)`
-                  }
+                  className="px-2 py-0.5 rounded-full font-black border flex items-center gap-1 bg-rose-500/20 border-rose-500/50 text-rose-300"
+                  title={`Total Attack: ${totalPlayerAttack} (${playerRawAttackPoints} from Spades + ${playerMinionAttackBonus} Minion bonus)`}
                 >
                   ⚔️ {totalPlayerAttack} Atk
-                  {isPlayerAttackNegatedByOpponentJoker && <span className="text-[9px] no-underline">🚫 Joker</span>}
                 </div>
 
                 {/* Defense Badge */}

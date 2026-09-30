@@ -123,7 +123,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 <ul className="text-xs list-disc list-inside space-y-1 text-stone-300">
                   <li>Numbered cards (Aces through 10): <strong>1 Energy</strong></li>
                   <li>Face cards (Jacks, Queens, Kings): <strong>2 Energy</strong> (e.g. King of Spades, King of Hearts, King of Diamonds, King of Clubs).</li>
-                  <li>Joker: <strong>2 Energy</strong> (Can only be used once per player; makes opponent unable to attack this round).</li>
+                  <li>Joker: <strong>0 Energy</strong> (Can only be used once per match; expands your maximum energy cap to 4 for that round only without refilling used energy, and does not negate opponent attacks).</li>
                   <li>Fighter setup: <strong>0 Energy</strong></li>
                   <li>Minion permanent equipment: <strong>2 Energy</strong></li>
                 </ul>
@@ -160,6 +160,12 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                   <Scissors className="w-5 h-5 text-emerald-400 shrink-0" />
                   <div>
                     <strong className="text-emerald-400">Clubs (Skills, Disruption & Debuff)</strong>: Trigger before attacks land! All Clubs can be used either as an <strong>Action Debuff</strong> (reducing opponent action points) OR for <strong>Disruption</strong> (Numbered clubs can shatter equipment if points ≥ tier; <strong>Jack and Queen of Clubs</strong> allow you to inspect the opponent's hand and force them to discard 1 chosen card; <strong>King of Clubs</strong> costs <strong>2 Energy</strong> to inspect the opponent's hand and steal 1 card, and that stolen card is played this round or summoned as your minion for <strong>0 additional Energy</strong>). Before each round begins, players with <strong>Face Club Cards</strong> (J, Q, K) are given the prompt to strike early before regular turn actions commence! If you play <strong>first</strong> (1st Initiative), you can still place your Club debuff on the table; right before the round resolves, once your opponent has revealed their cards, you choose which opponent action to debuff or equipment to shatter!
+                  </div>
+                </div>
+                <div className="p-3 bg-stone-950 rounded-xl border border-purple-900/60 flex gap-3">
+                  <Sparkles className="w-5 h-5 text-purple-400 shrink-0" />
+                  <div>
+                    <strong className="text-purple-400">Joker (Max Energy Expansion)</strong>: Costs <strong>0 Energy</strong> and can be played once per match. Expands your maximum energy cap to <strong>4 Max Energy</strong> for that round only. Used energy is not refilled or reset, but your energy capacity increases to 4. Does not negate opponent attacks.
                   </div>
                 </div>
               </div>

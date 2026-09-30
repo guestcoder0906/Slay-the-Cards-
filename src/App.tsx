@@ -647,6 +647,13 @@ export default function App() {
               clubSpecial: action.clubSpecial,
             });
 
+            if (action.card.isJoker) {
+              aiState.hasUsedJoker = true;
+              const usedEnergy = (aiState.maxEnergy || 3) - aiState.energy;
+              aiState.maxEnergy = 4;
+              aiState.energy = Math.max(0, 4 - usedEnergy);
+            }
+
             // If AI plays a Face Club special (Jack/Queen discard, or King heist)
             if (action.clubSpecial?.type === 'jack' || action.clubSpecial?.type === 'queen') {
               const humanPlayer = next.players[0];
@@ -908,11 +915,12 @@ export default function App() {
       player.playedActions.push(action);
       sounds.playCardPlace();
 
-      // Joker effect: resets energy to 4 for this round only, costs 0 energy
+      // Joker effect: expands max energy to 4 for this round only, costs 0 energy (used energy is NOT refilled, max energy is 4)
       if (card.isJoker) {
         player.hasUsedJoker = true;
-        player.energy = 4;
+        const usedEnergy = (player.maxEnergy || 3) - player.energy;
         player.maxEnergy = 4;
+        player.energy = Math.max(0, 4 - usedEnergy);
       }
 
       // Check if player has any unattached Diamond cards on the table waiting for a target (Face cards cannot be upgraded)
@@ -1105,7 +1113,7 @@ export default function App() {
 
   const handleTriggerJoker = () => {
     const player = gameState.players[localPlayerIndex];
-    if (gameState.activePlayerIndex !== localPlayerIndex || player.hasUsedJoker || player.energy < 2) return;
+    if (gameState.activePlayerIndex !== localPlayerIndex || player.hasUsedJoker) return;
 
     const jokerCard = player.hand.find(c => c.isJoker);
     if (!jokerCard) return;

@@ -178,30 +178,22 @@ export class AIPlayerService {
     }
 
     // -------------------------------------------------------------
-    // PRIORITY 1: EMERGENCY JOKER (LETHAL DENIAL)
+    // PRIORITY 1: JOKER ENERGY EXPANSION (0 ENERGY, 4 MAX ENERGY)
     // -------------------------------------------------------------
-    // If incoming unblocked damage is fatal or will reduce AI to 0 HP, play Joker!
+    // If AI has Joker in hand and multiple playable cards that would benefit from 4 max energy, play Joker!
     const jokerCard = hand.find(c => c.isJoker);
-    const wouldTakeFatalDamage =
-      isAiGoingSecond &&
-      incomingOpponentAttack > aiPassiveShield &&
-      (incomingOpponentAttack - aiPassiveShield) >= aiTotalHp;
+    const nonJokerPlayableCards = hand.filter(c => !c.isJoker);
 
-    const isCriticalHpAndThreatened =
-      isAiGoingSecond &&
-      (aiState.fighter?.hp || 3) <= 2 &&
-      incomingOpponentAttack >= 3;
-
-    if (jokerCard && !aiState.hasUsedJoker && currentEnergy >= 2 && (wouldTakeFatalDamage || isCriticalHpAndThreatened)) {
+    if (jokerCard && !aiState.hasUsedJoker && nonJokerPlayableCards.length >= 2) {
       onPlayAction({
         card: jokerCard,
         orientation: 'horizontal',
-        energyCost: 2,
+        energyCost: 0,
         isJokerAction: true,
       });
       const jIdx = hand.findIndex(c => c.id === jokerCard.id);
       if (jIdx >= 0) hand.splice(jIdx, 1);
-      currentEnergy -= 2;
+      currentEnergy += 1;
     }
 
     // -------------------------------------------------------------
