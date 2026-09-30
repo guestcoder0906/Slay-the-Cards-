@@ -944,16 +944,30 @@ export default function App() {
       }
 
       // Inherent Diamond Champion Fighter Passive (+1 Boost to chosen action for 0 Energy)
-      // Always applies to your played action even if no Diamonds were played!
+      // Only applies if NONE of the played cards are the same suit as the fighter card (Diamonds)!
       let fighterBoost = 0;
       if (
         player.fighter?.affinity === 'diamonds' &&
         !card.isJoker
       ) {
         const hasExistingFighterBoost = player.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
-        if (!hasExistingFighterBoost) {
+        const hasPlayedDiamond =
+          player.playedActions.some(a => a.card.suit === 'diamonds' && !a.isJokerAction) ||
+          card.suit === 'diamonds';
+        if (!hasExistingFighterBoost && !hasPlayedDiamond) {
           fighterBoost = 1;
         }
+      }
+
+      // If the player has Diamonds Fighter affinity and plays a Diamond card, revoke any previously given fighter passive boost
+      if (card.suit === 'diamonds' && player.fighter?.affinity === 'diamonds') {
+        player.playedActions.forEach(a => {
+          if ((a.fighterBoostedPoints || 0) > 0) {
+            a.finalPoints = Math.max(0, a.finalPoints - (a.fighterBoostedPoints || 0));
+            a.boostedPoints = Math.max(0, a.boostedPoints - (a.fighterBoostedPoints || 0));
+            a.fighterBoostedPoints = 0;
+          }
+        });
       }
 
       const action: PlayedActionCard = {
@@ -1122,6 +1136,12 @@ export default function App() {
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
       if (player.fighter?.affinity !== 'diamonds') return prev;
+
+      // Only allowed if NONE of the played cards are Diamonds
+      const hasPlayedDiamond = player.playedActions.some(
+        a => a.card.suit === 'diamonds' && !a.isJokerAction
+      );
+      if (hasPlayedDiamond) return prev;
 
       player.playedActions.forEach(a => {
         if (a.id === actionId && a.heartDeclaration !== 'heal' && !a.isJokerAction) {

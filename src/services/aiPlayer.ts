@@ -234,21 +234,6 @@ export class AIPlayerService {
 
     const upgradeableAttack = potentialAttackCards.find(c => !isFaceCard(c.rank));
 
-    // Inherent Spades Fighter passive (+1 Attack damage)
-    if (aiState.fighter?.affinity === 'spades') {
-      potentialAttackPoints += 1;
-    }
-
-    // Inherent Diamonds Fighter passive (+1 to chosen attack)
-    if (aiState.fighter?.affinity === 'diamonds' && potentialAttackCards.length > 0) {
-      potentialAttackPoints += 1;
-    }
-
-    // Passive spade equipment boost
-    if (potentialAttackCards.length > 0 && aiState.minion?.equippedPermanent?.suit === 'spades') {
-      potentialAttackPoints += aiState.minion.equippedPermanent.tierPoints;
-    }
-
     // Check if Diamond overcharge can push over the finish line (only if round > 1 and there is a non-face attack)
     let diamondBoostCard: Card | null = null;
     if (roundNumber > 1 && upgradeableAttack && currentEnergy - attackEnergyNeeded >= 1) {
@@ -261,6 +246,21 @@ export class AIPlayerService {
           break;
         }
       }
+    }
+
+    // Inherent Spades Fighter passive (+1 Attack damage) - only if NO Spades are played
+    if (aiState.fighter?.affinity === 'spades' && potentialAttackCards.length === 0) {
+      potentialAttackPoints += 1;
+    }
+
+    // Inherent Diamonds Fighter passive (+1 to chosen attack) - only if NO Diamonds are played
+    if (aiState.fighter?.affinity === 'diamonds' && potentialAttackCards.length > 0 && !diamondBoostCard) {
+      potentialAttackPoints += 1;
+    }
+
+    // Passive spade equipment boost
+    if (potentialAttackCards.length > 0 && aiState.minion?.equippedPermanent?.suit === 'spades') {
+      potentialAttackPoints += aiState.minion.equippedPermanent.tierPoints;
     }
 
     const netLethalDamage = Math.max(0, potentialAttackPoints - totalOpponentDefense);

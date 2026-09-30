@@ -36,26 +36,44 @@ export function resolveCombatRound(currentState: GameState): {
   // -------------------------------------------------------------
   // STEP 0: DIAMONDS FIGHTER PASSIVE (+1 BOOST) VERIFICATION
   // -------------------------------------------------------------
-  // Ensures Diamond Champion Fighter Passive (+1 Boost) always applies to an action card
-  // even if no Diamonds were played that match the Fighter's suit!
+  // Diamonds Champion Fighter Passive (+1 Boost) ONLY applies if NONE of the played cards
+  // are the same suit as the Fighter card (Diamonds)!
   [p1, p2].forEach(p => {
     if (p.fighter?.affinity === 'diamonds') {
-      const alreadyHasBoost = p.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
-      if (!alreadyHasBoost) {
-        const eligible = p.playedActions.filter(a => a.heartDeclaration !== 'heal' && !a.isJokerAction);
-        if (eligible.length > 0) {
-          const targetAction = eligible.find(a => a.card.suit === 'spades') || eligible[0];
-          targetAction.fighterBoostedPoints = 1;
-          targetAction.boostedPoints += 1;
-          targetAction.finalPoints += 1;
-          logs.push({
-            id: `diamond_fighter_passive_${p.id}_${Date.now()}`,
-            phase: 'damage',
-            title: `${p.name}'s Diamonds Champion Passive Activated!`,
-            description: `Inherent +1 passive Boost applied to ${targetAction.card.name}!`,
-            sourcePlayerId: p.id,
-            amount: 1,
-          });
+      const hasPlayedDiamond = p.playedActions.some(
+        a => a.card.suit === 'diamonds' && !a.isJokerAction
+      );
+
+      if (hasPlayedDiamond) {
+        // If a Diamond was played, passive does NOT apply; remove any pre-assigned passive boost
+        p.playedActions.forEach(a => {
+          if ((a.fighterBoostedPoints || 0) > 0) {
+            a.finalPoints = Math.max(0, a.finalPoints - (a.fighterBoostedPoints || 0));
+            a.boostedPoints = Math.max(0, a.boostedPoints - (a.fighterBoostedPoints || 0));
+            a.fighterBoostedPoints = 0;
+          }
+        });
+      } else {
+        // None of the played cards are Diamonds: passive applies!
+        const alreadyHasBoost = p.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
+        if (!alreadyHasBoost) {
+          const eligible = p.playedActions.filter(
+            a => a.heartDeclaration !== 'heal' && !a.isJokerAction
+          );
+          if (eligible.length > 0) {
+            const targetAction = eligible.find(a => a.card.suit === 'spades') || eligible[0];
+            targetAction.fighterBoostedPoints = 1;
+            targetAction.boostedPoints += 1;
+            targetAction.finalPoints += 1;
+            logs.push({
+              id: `diamond_fighter_passive_${p.id}_${Date.now()}`,
+              phase: 'damage',
+              title: `${p.name}'s Diamonds Champion Passive Activated!`,
+              description: `No Diamonds played: Inherent +1 passive Boost applied to ${targetAction.card.name}!`,
+              sourcePlayerId: p.id,
+              amount: 1,
+            });
+          }
         }
       }
     }
@@ -68,25 +86,32 @@ export function resolveCombatRound(currentState: GameState): {
     { source: p1, target: p2 },
     { source: p2, target: p1 },
   ].forEach(({ source, target }) => {
-    // 1A. Clubs Champion Fighter Passive (+1 Debuff automatically each round with 0 Energy)
+    // 1A. Clubs Champion Fighter Passive (+1 Debuff automatically with 0 Energy)
+    // ONLY applies if NONE of the played cards are Clubs (same suit as the fighter card)!
     if (source.fighter?.affinity === 'clubs') {
-      const eligible = target.playedActions
-        .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
-        .sort((a, b) => b.finalPoints - a.finalPoints);
-      if (eligible.length > 0) {
-        const targetAction = eligible[0];
-        targetAction.debuffedPoints += 1;
-        targetAction.finalPoints = Math.max(0, targetAction.finalPoints - 1);
+      const hasPlayedClubs = source.playedActions.some(
+        a => a.card.suit === 'clubs' && !a.isJokerAction
+      );
 
-        logs.push({
-          id: `club_fighter_passive_${source.id}_${Date.now()}`,
-          phase: 'clubs',
-          title: `${source.name}'s Clubs Champion Passive Activated!`,
-          description: `Inherent +1 Club Debuff nullified 1 point from ${target.name}'s ${targetAction.card.name}!`,
-          sourcePlayerId: source.id,
-          targetPlayerId: target.id,
-          amount: 1,
-        });
+      if (!hasPlayedClubs) {
+        const eligible = target.playedActions
+          .filter(a => a.heartDeclaration !== 'heal' && a.finalPoints > 0)
+          .sort((a, b) => b.finalPoints - a.finalPoints);
+        if (eligible.length > 0) {
+          const targetAction = eligible[0];
+          targetAction.debuffedPoints += 1;
+          targetAction.finalPoints = Math.max(0, targetAction.finalPoints - 1);
+
+          logs.push({
+            id: `club_fighter_passive_${source.id}_${Date.now()}`,
+            phase: 'clubs',
+            title: `${source.name}'s Clubs Champion Passive Activated!`,
+            description: `No Clubs played: Inherent +1 Club Debuff nullified 1 point from ${target.name}'s ${targetAction.card.name}!`,
+            sourcePlayerId: source.id,
+            targetPlayerId: target.id,
+            amount: 1,
+          });
+        }
       }
     }
 
@@ -191,8 +216,22 @@ export function resolveCombatRound(currentState: GameState): {
   const calculateDefense = (player: PlayerState) => {
     let passiveShield = 0;
     // Inherent Hearts Champion Fighter Passive (+1 Shield every round for 0 Energy)
+    // ONLY applies if NONE of the played cards are Hearts (same suit as the fighter card)!
     if (player.fighter?.affinity === 'hearts') {
-      passiveShield += 1;
+      const hasPlayedHearts = player.playedActions.some(
+        a => a.card.suit === 'hearts' && !a.isJokerAction
+      );
+      if (!hasPlayedHearts) {
+        passiveShield += 1;
+        logs.push({
+          id: `heart_fighter_passive_${player.id}_${Date.now()}`,
+          phase: 'defense',
+          title: `${player.name}'s Hearts Champion Passive Activated!`,
+          description: `No Hearts played: Inherent +1 passive Shield gained!`,
+          sourcePlayerId: player.id,
+          amount: 1,
+        });
+      }
     }
     // Vertically equipped Heart on minion
     if (player.minion?.equippedPermanent?.suit === 'hearts') {
@@ -228,16 +267,22 @@ export function resolveCombatRound(currentState: GameState): {
     });
 
     // Inherent Spades Champion Fighter Passive (+1 Attack every round for 0 Energy)
+    // ONLY applies if NONE of the played cards are Spades (same suit as the fighter card)!
     if (attacker.fighter?.affinity === 'spades') {
-      attackPoints += 1;
-      logs.push({
-        id: `spade_fighter_passive_${attacker.id}_${Date.now()}`,
-        phase: 'damage',
-        title: `${attacker.name}'s Spades Champion Passive Activated!`,
-        description: `Inherent +1 passive Attack damage dealt!`,
-        sourcePlayerId: attacker.id,
-        amount: 1,
-      });
+      const hasPlayedSpades = attacker.playedActions.some(
+        a => a.card.suit === 'spades' && !a.isJokerAction
+      );
+      if (!hasPlayedSpades) {
+        attackPoints += 1;
+        logs.push({
+          id: `spade_fighter_passive_${attacker.id}_${Date.now()}`,
+          phase: 'damage',
+          title: `${attacker.name}'s Spades Champion Passive Activated!`,
+          description: `No Spades played: Inherent +1 passive Attack damage dealt!`,
+          sourcePlayerId: attacker.id,
+          amount: 1,
+        });
+      }
     }
 
     // Vertically equipped Spade on minion gives passive attack bonus IF attacker attacks

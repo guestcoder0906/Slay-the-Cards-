@@ -195,21 +195,45 @@ export const TableBoard: React.FC<TableBoardProps> = ({
     }
   });
 
-  // Opponent Fighter Passives
-  const oppFighterAttackBonus = opponent.fighter?.affinity === 'spades' ? 1 : 0;
-  const oppFighterShieldBonus = opponent.fighter?.affinity === 'hearts' ? 1 : 0;
-  if (oppFighterAttackBonus > 0) {
-    oppSpecialEffects.push('🗡️ Spades Fighter (+1 Passive Attack each round)');
+  // Opponent Fighter Passives: only applies if NONE of the played cards are the same suit as fighter card
+  const oppHasPlayedFighterSuit = opponent.playedActions.some(
+    a => a.card.suit === opponent.fighter?.affinity && !a.isJokerAction
+  );
+  const oppFighterAttackBonus =
+    opponent.fighter?.affinity === 'spades' && !oppHasPlayedFighterSuit ? 1 : 0;
+  const oppFighterShieldBonus =
+    opponent.fighter?.affinity === 'hearts' && !oppHasPlayedFighterSuit ? 1 : 0;
+  const oppFighterDebuffBonus =
+    opponent.fighter?.affinity === 'clubs' && !oppHasPlayedFighterSuit ? 1 : 0;
+
+  if (opponent.fighter?.affinity === 'spades') {
+    if (!oppHasPlayedFighterSuit) {
+      oppSpecialEffects.push('🗡️ Spades Fighter (+1 Passive Attack — active: no Spades played)');
+    } else {
+      oppSpecialEffects.push('🗡️ Spades Fighter Passive (Inactive: Spades card played)');
+    }
   }
-  if (oppFighterShieldBonus > 0) {
-    oppSpecialEffects.push('🛡️ Hearts Fighter (+1 Passive Shield each round)');
+  if (opponent.fighter?.affinity === 'hearts') {
+    if (!oppHasPlayedFighterSuit) {
+      oppSpecialEffects.push('🛡️ Hearts Fighter (+1 Passive Shield — active: no Hearts played)');
+    } else {
+      oppSpecialEffects.push('🛡️ Hearts Fighter Passive (Inactive: Hearts card played)');
+    }
   }
   if (opponent.fighter?.affinity === 'diamonds') {
-    oppSpecialEffects.push('⚡ Diamonds Fighter (+1 Boost to chosen action)');
+    if (!oppHasPlayedFighterSuit) {
+      oppSpecialEffects.push('⚡ Diamonds Fighter (+1 Passive Boost — active: no Diamonds played)');
+    } else {
+      oppSpecialEffects.push('⚡ Diamonds Fighter Passive (Inactive: Diamonds card played)');
+    }
   }
   if (opponent.fighter?.affinity === 'clubs') {
-    oppDebuffPoints += 1;
-    oppSpecialEffects.push('✂️ Clubs Fighter (+1 Passive Debuff each round)');
+    if (!oppHasPlayedFighterSuit) {
+      oppDebuffPoints += 1;
+      oppSpecialEffects.push('✂️ Clubs Fighter (+1 Passive Debuff — active: no Clubs played)');
+    } else {
+      oppSpecialEffects.push('✂️ Clubs Fighter Passive (Inactive: Clubs card played)');
+    }
   }
 
   const totalOppAttack = oppRawAttackPoints + oppMinionAttackBonus + oppFighterAttackBonus;
@@ -224,21 +248,45 @@ export const TableBoard: React.FC<TableBoardProps> = ({
   let playerDebuffPoints = 0;
   const playerSpecialEffects: string[] = [];
 
-  // Player Fighter Passives
-  const playerFighterAttackBonus = player.fighter?.affinity === 'spades' ? 1 : 0;
-  const playerFighterShieldBonus = player.fighter?.affinity === 'hearts' ? 1 : 0;
-  if (playerFighterAttackBonus > 0) {
-    playerSpecialEffects.push('🗡️ Spades Fighter (+1 Passive Attack each round)');
+  // Player Fighter Passives: only applies if NONE of the played cards are the same suit as fighter card
+  const playerHasPlayedFighterSuit = player.playedActions.some(
+    a => a.card.suit === player.fighter?.affinity && !a.isJokerAction
+  );
+  const playerFighterAttackBonus =
+    player.fighter?.affinity === 'spades' && !playerHasPlayedFighterSuit ? 1 : 0;
+  const playerFighterShieldBonus =
+    player.fighter?.affinity === 'hearts' && !playerHasPlayedFighterSuit ? 1 : 0;
+  const playerFighterDebuffBonus =
+    player.fighter?.affinity === 'clubs' && !playerHasPlayedFighterSuit ? 1 : 0;
+
+  if (player.fighter?.affinity === 'spades') {
+    if (!playerHasPlayedFighterSuit) {
+      playerSpecialEffects.push('🗡️ Spades Fighter (+1 Passive Attack — active: no Spades played)');
+    } else {
+      playerSpecialEffects.push('🗡️ Spades Fighter Passive (Inactive: Spades card played)');
+    }
   }
-  if (playerFighterShieldBonus > 0) {
-    playerSpecialEffects.push('🛡️ Hearts Fighter (+1 Passive Shield each round)');
+  if (player.fighter?.affinity === 'hearts') {
+    if (!playerHasPlayedFighterSuit) {
+      playerSpecialEffects.push('🛡️ Hearts Fighter (+1 Passive Shield — active: no Hearts played)');
+    } else {
+      playerSpecialEffects.push('🛡️ Hearts Fighter Passive (Inactive: Hearts card played)');
+    }
   }
   if (player.fighter?.affinity === 'diamonds') {
-    playerSpecialEffects.push('⚡ Diamonds Fighter (+1 Boost to chosen action)');
+    if (!playerHasPlayedFighterSuit) {
+      playerSpecialEffects.push('⚡ Diamonds Fighter (+1 Passive Boost — active: no Diamonds played)');
+    } else {
+      playerSpecialEffects.push('⚡ Diamonds Fighter Passive (Inactive: Diamonds card played)');
+    }
   }
   if (player.fighter?.affinity === 'clubs') {
-    playerDebuffPoints += 1;
-    playerSpecialEffects.push('✂️ Clubs Fighter (+1 Passive Debuff each round)');
+    if (!playerHasPlayedFighterSuit) {
+      playerDebuffPoints += 1;
+      playerSpecialEffects.push('✂️ Clubs Fighter (+1 Passive Debuff — active: no Clubs played)');
+    } else {
+      playerSpecialEffects.push('✂️ Clubs Fighter Passive (Inactive: Clubs card played)');
+    }
   }
 
   // Player Minion effects
@@ -571,10 +619,22 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                   size="md"
                 />
                 <span className="mt-1.5 text-[9px] px-2 py-0.5 rounded-full font-black bg-stone-900 border border-amber-500/40 text-amber-300 text-center shadow-sm">
-                  {opponent.fighter.affinity === 'spades' && '⚔️ Passive: +1 Attack'}
-                  {opponent.fighter.affinity === 'hearts' && '🛡️ Passive: +1 Shield'}
-                  {opponent.fighter.affinity === 'diamonds' && '⚡ Passive: +1 Boost'}
-                  {opponent.fighter.affinity === 'clubs' && '✂️ Passive: +1 Debuff'}
+                  {opponent.fighter.affinity === 'spades' &&
+                    (oppHasPlayedFighterSuit
+                      ? '⚔️ Passive: Inactive (Spades played)'
+                      : '⚔️ Passive: +1 Attack (Active)')}
+                  {opponent.fighter.affinity === 'hearts' &&
+                    (oppHasPlayedFighterSuit
+                      ? '🛡️ Passive: Inactive (Hearts played)'
+                      : '🛡️ Passive: +1 Shield (Active)')}
+                  {opponent.fighter.affinity === 'diamonds' &&
+                    (oppHasPlayedFighterSuit
+                      ? '⚡ Passive: Inactive (Diamonds played)'
+                      : '⚡ Passive: +1 Boost (Active)')}
+                  {opponent.fighter.affinity === 'clubs' &&
+                    (oppHasPlayedFighterSuit
+                      ? '✂️ Passive: Inactive (Clubs played)'
+                      : '✂️ Passive: +1 Debuff (Active)')}
                 </span>
               </div>
             ) : (
@@ -1215,10 +1275,22 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                   size="md"
                 />
                 <span className="mt-1.5 text-[9px] px-2 py-0.5 rounded-full font-black bg-stone-900 border border-amber-500/40 text-amber-300 text-center shadow-sm">
-                  {player.fighter.affinity === 'spades' && '⚔️ Passive: +1 Attack'}
-                  {player.fighter.affinity === 'hearts' && '🛡️ Passive: +1 Shield'}
-                  {player.fighter.affinity === 'diamonds' && '⚡ Passive: +1 Boost'}
-                  {player.fighter.affinity === 'clubs' && '✂️ Passive: +1 Debuff'}
+                  {player.fighter.affinity === 'spades' &&
+                    (playerHasPlayedFighterSuit
+                      ? '⚔️ Passive: Inactive (Spades played)'
+                      : '⚔️ Passive: +1 Attack (Active)')}
+                  {player.fighter.affinity === 'hearts' &&
+                    (playerHasPlayedFighterSuit
+                      ? '🛡️ Passive: Inactive (Hearts played)'
+                      : '🛡️ Passive: +1 Shield (Active)')}
+                  {player.fighter.affinity === 'diamonds' &&
+                    (playerHasPlayedFighterSuit
+                      ? '⚡ Passive: Inactive (Diamonds played)'
+                      : '⚡ Passive: +1 Boost (Active)')}
+                  {player.fighter.affinity === 'clubs' &&
+                    (playerHasPlayedFighterSuit
+                      ? '✂️ Passive: Inactive (Clubs played)'
+                      : '✂️ Passive: +1 Debuff (Active)')}
                 </span>
               </div>
             )}
@@ -1239,7 +1311,17 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                       <CardView card={player.minion.boostAceCard} size="sm" />
                     </div>
                   )}
-                  <div className="flex flex-col items-center">
+                  <div
+                    onDragOver={e => {
+                      if (player.minion && player.minion.hp < player.minion.maxHp) {
+                        e.preventDefault();
+                        setDragOverZone('minion');
+                      }
+                    }}
+                    onDragLeave={handleDragLeave}
+                    onDrop={e => handleDrop(e, 'minion')}
+                    className="flex flex-col items-center"
+                  >
                     <CardView
                       card={player.minion.aceCard}
                       hp={player.minion.hp}
@@ -1247,10 +1329,21 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                       size="md"
                     />
                     {player.minion.hp < player.minion.maxHp && (
-                      <span className="mt-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-rose-950/90 border border-rose-500/60 text-rose-300 animate-pulse flex items-center gap-1 shadow-sm">
+                      <button
+                        onClick={() => {
+                          if (selectedCardForAction && selectedCardForAction.suit === 'hearts') {
+                            onPlayActionCard(selectedCardForAction, 'horizontal', undefined, 'heal', 'minion');
+                            setSelectedCardForAction(null);
+                          } else {
+                            alert('Select a Heart card from your hand or drag a Heart card onto this Ace to heal it back to full 2/2 HP!');
+                          }
+                        }}
+                        className="mt-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-rose-950/90 border border-rose-500/60 text-rose-300 hover:bg-emerald-950 hover:border-emerald-400 hover:text-emerald-200 transition-all cursor-pointer animate-pulse flex items-center gap-1 shadow-sm"
+                        title="Click with a Heart card selected (or drop a Heart card) to restore this Ace to full 2/2 HP"
+                      >
                         <Heart className="w-2.5 h-2.5 fill-rose-400" />
-                        <span>1/2 HP Ace (Healable)</span>
-                      </span>
+                        <span>1/2 HP Ace (Click/Drop Heart to Heal)</span>
+                      </button>
                     )}
                   </div>
                 </div>
