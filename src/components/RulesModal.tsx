@@ -75,7 +75,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 <ul className="text-xs list-disc list-inside space-y-1 text-stone-300">
                   <li><strong>Numbered Fighters (Aces through 10)</strong>: 3 starting Health.</li>
                   <li><strong>Face Card Fighters (Jack, Queen, King)</strong>: 4 starting Health.</li>
-                  <li><strong>Affinity</strong>: Your Fighter's printed suit determines your Affinity. You may play multiple cards matching your Fighter's suit per round! You are strictly limited to playing at most 1 action card and optionally 1 minion card (if Ace) per round of any non-matching suit.</li>
+                  <li><strong>Affinity</strong>: Your Fighter's printed suit determines your Affinity. You may play multiple cards matching your Fighter's suit per round! You are strictly limited to playing at most 1 action card and optionally 1 minion card (if Ace) per round of any non-matching suit. Minions can only attach a permanent same to their suit. You cannot use upgrade cards (Diamond Action Overcharges or Minion Equipment Permanents) during the 1st round of the game.</li>
                 </ul>
               </div>
               <div className="p-4 bg-stone-950 rounded-xl border border-stone-800 space-y-2">

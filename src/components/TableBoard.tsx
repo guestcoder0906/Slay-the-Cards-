@@ -317,7 +317,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
         alert(`Need ${cost} Energy to play this card. (You have ${player.energy}⚡ remaining)`);
         return;
       }
-      const check = canPlayActionOfSuit(card, affinity, player.playedActions);
+      const check = canPlayActionOfSuit(card, affinity, player.playedActions, gameState.roundNumber);
       if (!check.allowed) {
         alert(check.reason);
         return;
@@ -354,7 +354,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
         alert("Equip minion is disabled for face cards! Only numbered cards (2-10) matching your minion's suit can be equipped.");
         return;
       }
-      const check = canEquipToMinion(card, player.minion, player.energy);
+      const check = canEquipToMinion(card, player.minion, player.energy, gameState.roundNumber);
       if (!check.allowed) {
         alert(check.reason);
         return;
@@ -845,7 +845,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             onDragLeave={handleDragLeave}
             onDrop={e => handleDrop(e, 'equipment')}
             className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed transition-all min-h-[110px] ${
-              !isMyTurn
+              !isMyTurn || gameState.roundNumber === 1
                 ? 'border-stone-800 bg-stone-950/30 opacity-50 cursor-not-allowed'
                 : dragOverZone === 'equipment'
                 ? 'border-purple-400 bg-purple-950/40 scale-[1.02]'
@@ -853,9 +853,13 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             }`}
           >
             <Layers className="w-6 h-6 text-purple-400 mb-1" />
-            <span className="font-bold text-xs text-purple-200">Equip Minion Permanent (2⚡)</span>
+            <span className="font-bold text-xs text-purple-200">
+              {gameState.roundNumber === 1 ? 'Equip Locked (Round 1)' : 'Equip Minion Permanent (2⚡)'}
+            </span>
             <span className="text-[10px] text-stone-400 text-center mt-0.5">
-              Drag non-face card matching Minion suit (ATK, Shield, Boost, Sabotage)
+              {gameState.roundNumber === 1
+                ? 'Upgrade cards & equipment permanents unlock starting in Round 2'
+                : 'Drag non-face card matching Minion suit (ATK, Shield, Boost, Sabotage)'}
             </span>
           </div>
         </div>
@@ -874,7 +878,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               {/* Play as Action */}
               {(() => {
-                const actionCheck = canPlayActionOfSuit(selectedCardForAction, affinity, player.playedActions);
+                const actionCheck = canPlayActionOfSuit(selectedCardForAction, affinity, player.playedActions, gameState.roundNumber);
                 const cost = getCardEnergyCost(selectedCardForAction);
                 const hasEnergy = player.energy >= cost;
                 const canPlayAction = (actionCheck.allowed || selectedCardForAction.isJoker) && hasEnergy;
@@ -889,7 +893,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 } else if (selectedCardForAction.suit === 'spades') {
                   actionLabel = 'Play Attack';
                 } else if (selectedCardForAction.suit === 'diamonds') {
-                  actionLabel = 'Play Action Boost';
+                  actionLabel = gameState.roundNumber === 1 ? 'Action Boost (Locked Rd 1)' : 'Play Action Boost';
                 }
 
                 return (
@@ -923,9 +927,17 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 </button>
               )}
 
-              {/* If Minion exists: Equip (Explicitly disabled for face cards!) */}
+              {/* If Minion exists: Equip (Explicitly disabled for face cards and Round 1!) */}
               {player.minion && !player.minion.equippedPermanent && (
-                isFaceCard(selectedCardForAction.rank) ? (
+                gameState.roundNumber === 1 ? (
+                  <button
+                    disabled
+                    className="px-3 py-1.5 rounded-lg bg-stone-800/80 text-stone-500 font-bold text-xs cursor-not-allowed border border-stone-700/60"
+                    title="Minion permanent upgrades unlock starting in Round 2"
+                  >
+                    🚫 Equip Locked (Round 1)
+                  </button>
+                ) : isFaceCard(selectedCardForAction.rank) ? (
                   <button
                     disabled
                     className="px-3 py-1.5 rounded-lg bg-stone-800/80 text-stone-500 font-bold text-xs cursor-not-allowed border border-stone-700/60"
@@ -935,7 +947,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                   </button>
                 ) : selectedCardForAction.rank !== 1 && !selectedCardForAction.isJoker ? (
                   (() => {
-                    const equipCheck = canEquipToMinion(selectedCardForAction, player.minion, player.energy);
+                    const equipCheck = canEquipToMinion(selectedCardForAction, player.minion, player.energy, gameState.roundNumber);
                     return (
                       <button
                         disabled={!equipCheck.allowed}

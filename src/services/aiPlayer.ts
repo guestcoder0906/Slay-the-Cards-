@@ -124,7 +124,8 @@ export class AIPlayerService {
     onBoostMinion: (aceCard: Card) => void,
     onEquipMinion: (card: Card) => void,
     onBankCard: (cardId: string) => void,
-    onReady: () => void
+    onReady: () => void,
+    roundNumber = 1
   ) {
     let currentEnergy = aiState.energy;
     let hand = [...aiState.hand];
@@ -234,9 +235,9 @@ export class AIPlayerService {
       potentialAttackPoints += aiState.minion.equippedPermanent.tierPoints;
     }
 
-    // Check if Diamond overcharge can push over the finish line
+    // Check if Diamond overcharge can push over the finish line (only if round > 1)
     let diamondBoostCard: Card | null = null;
-    if (potentialAttackCards.length > 0 && currentEnergy - attackEnergyNeeded >= 1) {
+    if (roundNumber > 1 && potentialAttackCards.length > 0 && currentEnergy - attackEnergyNeeded >= 1) {
       for (const d of diamondCardsInHand) {
         const cost = getCardEnergyCost(d);
         if (attackEnergyNeeded + cost <= currentEnergy) {
@@ -307,11 +308,11 @@ export class AIPlayerService {
       }
     }
 
-    // Equip Minion Permanent (costs 2 Energy)
+    // Equip Minion Permanent (costs 2 Energy, only from Round 2 onwards)
     // Matching suit only, numbered cards (2-10). Gives massive continuous value!
-    if (aiState.minion && !aiState.minion.equippedPermanent && currentEnergy >= 2) {
+    if (aiState.minion && !aiState.minion.equippedPermanent && currentEnergy >= 2 && roundNumber > 1) {
       const equipableIndex = hand.findIndex(c => {
-        return canEquipToMinion(c, aiState.minion, currentEnergy).allowed;
+        return canEquipToMinion(c, aiState.minion, currentEnergy, roundNumber).allowed;
       });
       if (equipableIndex >= 0) {
         const equipCard = hand[equipableIndex];
@@ -475,7 +476,7 @@ export class AIPlayerService {
         if (card.isJoker) return false;
         const cost = getCardEnergyCost(card);
         if (cost > currentEnergy) return false;
-        return canPlayActionOfSuit(card, affinity, playedActions).allowed;
+        return canPlayActionOfSuit(card, affinity, playedActions, roundNumber).allowed;
       });
 
       if (playableCards.length === 0) break;

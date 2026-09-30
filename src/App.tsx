@@ -661,7 +661,7 @@ export default function App() {
             }
           },
           card => {
-            if (aiState.minion) {
+            if (aiState.minion && next.roundNumber > 1) {
               aiState.hand = aiState.hand.filter(c => c.id !== card.id);
               aiState.energy -= 2;
               aiState.minion.equippedPermanent = {
@@ -719,7 +719,8 @@ export default function App() {
               next.activePlayerIndex = 0;
               broadcastGameState(next);
             }
-          }
+          },
+          next.roundNumber
         );
 
         return next;
@@ -739,6 +740,11 @@ export default function App() {
     setGameState(prev => {
       // Must be player's turn!
       if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') {
+        return prev;
+      }
+
+      // Upgrade restriction: Diamond overcharge cards cannot be played during Round 1
+      if (card.suit === 'diamonds' && prev.roundNumber === 1) {
         return prev;
       }
 
@@ -848,7 +854,7 @@ export default function App() {
 
   const handleEquipPermanent = (card: Card) => {
     setGameState(prev => {
-      if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action') return prev;
+      if (prev.activePlayerIndex !== localPlayerIndex || prev.phase !== 'round_action' || prev.roundNumber === 1) return prev;
       const next: GameState = JSON.parse(JSON.stringify(prev));
       const player = next.players[localPlayerIndex];
 
@@ -1482,7 +1488,10 @@ export default function App() {
           onTriggerJoker={handleTriggerJoker}
           onRequestHeartChoice={card => setPendingHeartCard(card)}
           onRequestClubTarget={card => setPendingClubCard(card)}
-          onRequestDiamondTarget={card => setPendingDiamondCard(card)}
+          onRequestDiamondTarget={card => {
+            if (gameState.roundNumber === 1) return;
+            setPendingDiamondCard(card);
+          }}
         />
       </main>
 

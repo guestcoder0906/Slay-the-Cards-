@@ -212,9 +212,19 @@ export function shuffleDeck(cards: Card[]): Card[] {
 export function canPlayActionOfSuit(
   card: Card,
   affinitySuit: CardSuit,
-  currentlyPlayedActions: PlayedActionCard[]
+  currentlyPlayedActions: PlayedActionCard[],
+  roundNumber = 1
 ): { allowed: boolean; reason?: string } {
   if (card.isJoker) return { allowed: true };
+
+  // First Round Restriction: Upgrade / Overcharge cards (Diamonds) cannot be used in Round 1
+  if (card.suit === 'diamonds' && roundNumber === 1) {
+    return {
+      allowed: false,
+      reason: 'Upgrade rule: Upgrade cards (Diamonds Action Overcharges) cannot be used during the first round of the game.'
+    };
+  }
+
   if (card.suit === affinitySuit) return { allowed: true };
 
   const hasPlayedSameNonAffinitySuit = currentlyPlayedActions.some(
@@ -239,8 +249,16 @@ export function canPlayActionOfSuit(
 export function canEquipToMinion(
   card: Card,
   minion: MinionUnit | null,
-  currentEnergy: number
+  currentEnergy: number,
+  roundNumber = 1
 ): { allowed: boolean; reason?: string } {
+  // First Round Restriction: Permanent upgrade equipment cannot be equipped in Round 1
+  if (roundNumber === 1) {
+    return {
+      allowed: false,
+      reason: 'Upgrade rule: Minion permanent upgrades cannot be equipped during the first round of the game.'
+    };
+  }
   if (!minion) {
     return { allowed: false, reason: 'You do not have an active minion on the table.' };
   }

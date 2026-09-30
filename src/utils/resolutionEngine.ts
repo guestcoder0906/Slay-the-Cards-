@@ -177,7 +177,30 @@ export function resolveCombatRound(currentState: GameState): {
 
     // Vertically equipped Spade on minion gives passive attack bonus IF attacker attacks
     if (hasAttack && attacker.minion?.equippedPermanent?.suit === 'spades') {
-      attackPoints += attacker.minion.equippedPermanent.tierPoints;
+      const spadeBonus = attacker.minion.equippedPermanent.tierPoints;
+      attackPoints += spadeBonus;
+      logs.push({
+        id: `spade_eq_${attacker.id}_${Date.now()}`,
+        phase: 'damage',
+        title: `${attacker.name}'s Minion Spade Equipment Activated!`,
+        description: `Equipped ${attacker.minion.equippedPermanent.card.name} added +${spadeBonus} passive Attack damage!`,
+        sourcePlayerId: attacker.id,
+        amount: spadeBonus,
+      });
+    }
+
+    // Vertically equipped Diamond on minion provides passive engine boost if attacker attacks
+    if (hasAttack && attacker.minion?.equippedPermanent?.suit === 'diamonds') {
+      const diamondBonus = attacker.minion.equippedPermanent.tierPoints;
+      attackPoints += diamondBonus;
+      logs.push({
+        id: `diamond_eq_${attacker.id}_${Date.now()}`,
+        phase: 'damage',
+        title: `${attacker.name}'s Minion Diamond Engine Boost Activated!`,
+        description: `Equipped ${attacker.minion.equippedPermanent.card.name} boosted attack actions by +${diamondBonus} points!`,
+        sourcePlayerId: attacker.id,
+        amount: diamondBonus,
+      });
     }
 
     return attackPoints;
@@ -199,15 +222,29 @@ export function resolveCombatRound(currentState: GameState): {
 
     let remainingAttack = incomingAttack;
 
-    // 1. Absorb by passive shield
-    if (defense.passiveShield > 0) {
+    // 0. Absorb by equipped Club passive sabotage on minion
+    if (defender.minion?.equippedPermanent?.suit === 'clubs' && remainingAttack > 0) {
+      const sabotageAmt = Math.min(remainingAttack, defender.minion.equippedPermanent.tierPoints);
+      remainingAttack -= sabotageAmt;
+      logs.push({
+        id: `club_eq_sabotage_${defender.id}_${Date.now()}`,
+        phase: 'defense',
+        title: `${defender.name}'s Minion Club Sabotage Activated!`,
+        description: `Equipped ${defender.minion.equippedPermanent.card.name} sabotaged and reduced incoming attack damage by ${sabotageAmt} points!`,
+        targetPlayerId: defender.id,
+        amount: sabotageAmt,
+      });
+    }
+
+    // 1. Absorb by passive shield (from equipped Heart permanent)
+    if (defense.passiveShield > 0 && remainingAttack > 0) {
       const absorbed = Math.min(remainingAttack, defense.passiveShield);
       remainingAttack -= absorbed;
       logs.push({
         id: `def_shield_${defender.id}_${Date.now()}`,
         phase: 'defense',
-        title: `${defender.name}'s Permanent Shield Absorbed Damage`,
-        description: `Passive shield absorbed ${absorbed} attack points from ${attackerName}.`,
+        title: `${defender.name}'s Minion Shield Absorbed Damage`,
+        description: `Passive shield from equipped ${defender.minion?.equippedPermanent?.card.name || 'Heart permanent'} absorbed ${absorbed} attack points from ${attackerName}.`,
         targetPlayerId: defender.id,
         amount: absorbed,
       });
