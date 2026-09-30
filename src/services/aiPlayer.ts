@@ -422,9 +422,11 @@ export class AIPlayerService {
 
             // King of clubs: Grand Heist (steal & play opponent's highest value card, costs 2 Energy)
             if (club.rank === 13 && opponentState.hand.length > 0 && currentEnergy >= 2) {
-              const sortedOppHand = [...opponentState.hand].sort(
-                (a, b) => getUniversalPoints(b) - getUniversalPoints(a)
-              );
+              const sortedOppHand = [...opponentState.hand].sort((a, b) => {
+                if (a.isJoker) return -1;
+                if (b.isJoker) return 1;
+                return getUniversalPoints(b) - getUniversalPoints(a);
+              });
               const targetCard = sortedOppHand[0];
               onPlayAction({
                 card: club,
@@ -434,7 +436,12 @@ export class AIPlayerService {
               });
               const idx = hand.findIndex(c => c.id === club.id);
               if (idx >= 0) hand.splice(idx, 1);
-              currentEnergy -= 2;
+              // King costs 2 energy; if Joker was stolen, max energy expands to 4 (leaving 2/4 energy)
+              if (targetCard.isJoker || targetCard.rank === 'Joker') {
+                currentEnergy = 2; // (4 max energy - 2 spent on King = 2 energy)
+              } else {
+                currentEnergy -= 2;
+              }
               break;
             }
           }

@@ -255,6 +255,7 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
                 {(() => {
                   const selectedCard = opponentState.hand.find(c => c.id === selectedHandCardId);
                   const isAce = selectedCard?.rank === 1;
+                  const isJoker = selectedCard?.isJoker || selectedCard?.rank === 'Joker';
 
                   return (
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -271,11 +272,16 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
                         }}
                         className={`flex items-center gap-2 px-5 py-2 font-bold text-xs rounded-xl transition-all ${
                           selectedHandCardId
-                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-lg shadow-emerald-700/40 active:scale-95'
+                            ? isJoker
+                              ? 'bg-purple-600 hover:bg-purple-500 text-white cursor-pointer shadow-lg shadow-purple-700/40 active:scale-95'
+                              : 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-lg shadow-emerald-700/40 active:scale-95'
                             : 'bg-stone-800 text-stone-500 cursor-not-allowed'
                         }`}
                       >
-                        <Hand className="w-4 h-4" /> Steal & Play This Round (Free / 0⚡)
+                        <Hand className="w-4 h-4" />{' '}
+                        {isJoker
+                          ? 'Steal & Play Joker (Expand to 4 Max Energy / 2/4⚡)'
+                          : 'Steal & Play This Round (Free / 0⚡)'}
                       </button>
                       {isAce && (
                         <button

@@ -411,8 +411,25 @@ export default function App() {
           opp.energy = Math.min(3, opp.energy + 1);
         }
 
-        // If stolen card is an Ace and AI lacks a minion (or can boost), play as minion!
-        if (stolen.rank === 1 && (!ai.minion || ai.minion.maxHp < 2)) {
+        // If stolen card is a Joker, play it immediately and expand max energy to 4 (leaving 2/4 energy after paying 2 for King)
+        if (stolen.isJoker || stolen.rank === 'Joker') {
+          ai.hasUsedJoker = true;
+          const usedEnergy = (ai.maxEnergy || 3) - ai.energy;
+          ai.maxEnergy = 4;
+          ai.energy = Math.max(0, 4 - usedEnergy);
+          ai.playedActions.push({
+            id: `ai_stolen_${Date.now()}`,
+            card: stolen,
+            orientation: 'horizontal',
+            energyCost: 0,
+            basePoints: 0,
+            boostedPoints: 0,
+            debuffedPoints: 0,
+            finalPoints: 0,
+            isJokerAction: true,
+          });
+          setPreRoundAnnouncement(`⚡ Pre-Round Grand Heist! Strategic AI played King of Clubs, stole your Joker, and expanded max energy to 4 (2/4⚡ remaining)!`);
+        } else if (stolen.rank === 1 && (!ai.minion || ai.minion.maxHp < 2)) {
           if (!ai.minion) {
             ai.minion = {
               id: `ai_minion_${Date.now()}`,
@@ -678,7 +695,23 @@ export default function App() {
                   humanPlayer.energy = Math.min(3, humanPlayer.energy + 1);
                 }
                 // Play stolen card for AI at 0 additional energy!
-                if (stolen.rank === 1 && !aiState.minion) {
+                if (stolen.isJoker || stolen.rank === 'Joker') {
+                  aiState.hasUsedJoker = true;
+                  const usedEnergy = (aiState.maxEnergy || 3) - aiState.energy;
+                  aiState.maxEnergy = 4;
+                  aiState.energy = Math.max(0, 4 - usedEnergy);
+                  aiState.playedActions.push({
+                    id: `ai_stolen_act_${Date.now()}`,
+                    card: stolen,
+                    orientation: 'horizontal',
+                    energyCost: 0,
+                    basePoints: 0,
+                    boostedPoints: 0,
+                    debuffedPoints: 0,
+                    finalPoints: 0,
+                    isJokerAction: true,
+                  });
+                } else if (stolen.rank === 1 && !aiState.minion) {
                   aiState.minion = {
                     id: `ai_minion_${Date.now()}`,
                     aceCard: stolen,
@@ -2018,7 +2051,20 @@ export default function App() {
                 let stolenCard: Card | undefined = undefined;
                 if (cIdx >= 0) {
                   stolenCard = opp.hand.splice(cIdx, 1)[0];
-                  if (asMinion && stolenCard.rank === 1) {
+                  if (stolenCard.isJoker || stolenCard.rank === 'Joker') {
+                    player.hasUsedJoker = true;
+                    player.playedActions.push({
+                      id: `stolen_play_${Date.now()}`,
+                      card: stolenCard,
+                      orientation: 'horizontal',
+                      energyCost: 0,
+                      basePoints: 0,
+                      boostedPoints: 0,
+                      debuffedPoints: 0,
+                      finalPoints: 0,
+                      isJokerAction: true,
+                    });
+                  } else if (asMinion && stolenCard.rank === 1) {
                     if (!player.minion) {
                       player.minion = {
                         id: `minion_${Date.now()}`,
@@ -2090,12 +2136,17 @@ export default function App() {
                   },
                 });
 
-                if (stolenCard) {
-                  setPreRoundAnnouncement(`👑 Grand Heist! ${player.name} played King of Clubs and stole ${opp.name}'s ${stolenCard.name}${asMinion && stolenCard.rank === 1 ? ' as a Minion' : ''}!`);
-                }
-
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= cost;
+
+                if (stolenCard && (stolenCard.isJoker || stolenCard.rank === 'Joker')) {
+                  const usedEnergy = (player.maxEnergy || 3) - player.energy;
+                  player.maxEnergy = 4;
+                  player.energy = Math.max(0, 4 - usedEnergy);
+                  setPreRoundAnnouncement(`👑 Grand Heist! ${player.name} played King of Clubs, stole ${opp.name}'s Joker, and expanded max energy to 4 (${player.energy}/4⚡)!`);
+                } else if (stolenCard) {
+                  setPreRoundAnnouncement(`👑 Grand Heist! ${player.name} played King of Clubs and stole ${opp.name}'s ${stolenCard.name}${asMinion && stolenCard.rank === 1 ? ' as a Minion' : ''}!`);
+                }
               } else {
                 player.hand = player.hand.filter(c => c.id !== pendingClubCard.id);
                 player.energy -= 1;
