@@ -46,7 +46,7 @@ interface TableBoardProps {
   isConnected?: boolean;
   playerCount?: number;
   onOpenMultiplayer?: () => void;
-  onPlayActionCard: (card: Card, orientation: 'horizontal', targetActionId?: string, heartDec?: HeartDeclaration) => void;
+  onPlayActionCard: (card: Card, orientation: 'horizontal', targetActionId?: string, heartDec?: HeartDeclaration, healTarget?: 'fighter' | 'minion') => void;
   onSummonMinion: (card: Card) => void;
   onBoostMinionHp: (card: Card) => void;
   onEquipPermanent: (card: Card) => void;
@@ -304,13 +304,8 @@ export const TableBoard: React.FC<TableBoardProps> = ({
     }
   });
 
-  const hasPlayerAttackActions = player.playedActions.some(
-    a => a.card.suit === 'spades' && !a.isJokerAction
-  );
-  const totalPlayerAttack = hasPlayerAttackActions
-    ? playerRawAttackPoints + playerMinionAttackBonus
-    : (playerMinionAttackBonus > 0 ? playerMinionAttackBonus : playerRawAttackPoints);
-  const totalPlayerBlock = playerBlockPoints + playerMinionPassiveShield;
+  const totalPlayerAttack = playerRawAttackPoints + playerMinionAttackBonus + playerFighterAttackBonus;
+  const totalPlayerBlock = playerBlockPoints + playerMinionPassiveShield + playerFighterShieldBonus;
 
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent, zone: 'action' | 'minion' | 'equipment') => {
@@ -374,8 +369,16 @@ export const TableBoard: React.FC<TableBoardProps> = ({
         onPlayActionCard(card, 'horizontal');
       }
     } else if (zone === 'minion') {
+      if (card.suit === 'hearts' && player.minion && player.minion.hp < player.minion.maxHp) {
+        if (player.energy < cost) {
+          alert(`Need ${cost} Energy to play this Heart card.`);
+          return;
+        }
+        onPlayActionCard(card, 'horizontal', undefined, 'heal', 'minion');
+        return;
+      }
       if (card.rank !== 1 || card.isJoker) {
-        alert('Only Aces can summon or boost Minions!');
+        alert('Only Aces can summon or boost Minions! (Or drop a Heart card to heal your 1/2 health Ace)');
         return;
       }
       if (player.energy < 1) {
@@ -1000,7 +1003,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 } else if (selectedCardForAction.suit === 'clubs') {
                   actionLabel = 'Play Disruption / Debuff';
                 } else if (selectedCardForAction.suit === 'hearts') {
-                  actionLabel = 'Play Block or Heal';
+                  actionLabel = player.minion && player.minion.hp < player.minion.maxHp ? 'Play Block or Heal (Fighter / Ace)' : 'Play Block or Heal';
                 } else if (selectedCardForAction.suit === 'spades') {
                   actionLabel = 'Play Attack';
                 } else if (selectedCardForAction.suit === 'diamonds') {
@@ -1022,6 +1025,23 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                   </button>
                 );
               })()}
+
+              {/* Direct Quick Heal 1/2 HP Minion button */}
+              {selectedCardForAction.suit === 'hearts' && player.minion && player.minion.hp < player.minion.maxHp && (
+                <button
+                  disabled={player.energy < getCardEnergyCost(selectedCardForAction)}
+                  onClick={() => onPlayActionCard(selectedCardForAction, 'horizontal', undefined, 'heal', 'minion')}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 shadow-md ${
+                    player.energy >= getCardEnergyCost(selectedCardForAction)
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer ring-1 ring-emerald-400 animate-pulse'
+                      : 'bg-stone-800 text-stone-500 cursor-not-allowed'
+                  }`}
+                  title="Directly heal your 1/2 HP Ace Minion back to full 2/2 HP"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Heal Ace Minion (1/2 HP ➔ 2/2)</span>
+                </button>
+              )}
 
               {/* If Ace: Summon or Boost Minion */}
               {selectedCardForAction.rank === 1 && !selectedCardForAction.isJoker && (
@@ -1219,12 +1239,20 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                       <CardView card={player.minion.boostAceCard} size="sm" />
                     </div>
                   )}
-                  <CardView
-                    card={player.minion.aceCard}
-                    hp={player.minion.hp}
-                    maxHp={player.minion.maxHp}
-                    size="md"
-                  />
+                  <div className="flex flex-col items-center">
+                    <CardView
+                      card={player.minion.aceCard}
+                      hp={player.minion.hp}
+                      maxHp={player.minion.maxHp}
+                      size="md"
+                    />
+                    {player.minion.hp < player.minion.maxHp && (
+                      <span className="mt-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-rose-950/90 border border-rose-500/60 text-rose-300 animate-pulse flex items-center gap-1 shadow-sm">
+                        <Heart className="w-2.5 h-2.5 fill-rose-400" />
+                        <span>1/2 HP Ace (Healable)</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {player.minion.equippedPermanent ? (
@@ -1334,7 +1362,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 {/* Attack Badge */}
                 <div
                   className="px-2 py-0.5 rounded-full font-black border flex items-center gap-1 bg-rose-500/20 border-rose-500/50 text-rose-300"
-                  title={`Total Attack: ${totalPlayerAttack} (${playerRawAttackPoints} from Spades + ${playerMinionAttackBonus} Minion bonus)`}
+                  title={`Total Attack: ${totalPlayerAttack} (${playerRawAttackPoints} from Spades + ${playerFighterAttackBonus} Fighter passive + ${playerMinionAttackBonus} Minion bonus)`}
                 >
                   ⚔️ {totalPlayerAttack} Atk
                 </div>
@@ -1342,7 +1370,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                 {/* Defense Badge */}
                 <div
                   className="px-2 py-0.5 rounded-full font-black bg-blue-500/20 border border-blue-500/50 text-blue-300 flex items-center gap-1"
-                  title={`Total Defense: ${totalPlayerBlock} (${playerBlockPoints} declared Block + ${playerMinionPassiveShield} Minion passive Shield)`}
+                  title={`Total Defense: ${totalPlayerBlock} (${playerBlockPoints} declared Block + ${playerFighterShieldBonus} Fighter passive Shield + ${playerMinionPassiveShield} Minion passive Shield)`}
                 >
                   🛡️ {totalPlayerBlock} Def
                   {playerMinionPassiveShield > 0 && (
@@ -1456,9 +1484,7 @@ export const TableBoard: React.FC<TableBoardProps> = ({
                     {/* Diamond Fighter Passive (+1 Free Boost) Switch Button */}
                     {player.fighter?.affinity === 'diamonds' &&
                       action.heartDeclaration !== 'heal' &&
-                      !action.isJokerAction &&
-                      action.card.suit !== 'diamonds' &&
-                      !isFaceCard(action.card.rank) && (
+                      !action.isJokerAction && (
                         action.fighterBoostedPoints === 1 ? (
                           <span
                             className="mt-1 text-[9px] px-2 py-0.5 rounded-md font-black bg-amber-400 text-stone-950 flex items-center gap-0.5 shadow-sm ring-1 ring-amber-300"

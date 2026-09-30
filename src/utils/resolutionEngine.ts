@@ -34,6 +34,34 @@ export function resolveCombatRound(currentState: GameState): {
   }
 
   // -------------------------------------------------------------
+  // STEP 0: DIAMONDS FIGHTER PASSIVE (+1 BOOST) VERIFICATION
+  // -------------------------------------------------------------
+  // Ensures Diamond Champion Fighter Passive (+1 Boost) always applies to an action card
+  // even if no Diamonds were played that match the Fighter's suit!
+  [p1, p2].forEach(p => {
+    if (p.fighter?.affinity === 'diamonds') {
+      const alreadyHasBoost = p.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
+      if (!alreadyHasBoost) {
+        const eligible = p.playedActions.filter(a => a.heartDeclaration !== 'heal' && !a.isJokerAction);
+        if (eligible.length > 0) {
+          const targetAction = eligible.find(a => a.card.suit === 'spades') || eligible[0];
+          targetAction.fighterBoostedPoints = 1;
+          targetAction.boostedPoints += 1;
+          targetAction.finalPoints += 1;
+          logs.push({
+            id: `diamond_fighter_passive_${p.id}_${Date.now()}`,
+            phase: 'damage',
+            title: `${p.name}'s Diamonds Champion Passive Activated!`,
+            description: `Inherent +1 passive Boost applied to ${targetAction.card.name}!`,
+            sourcePlayerId: p.id,
+            amount: 1,
+          });
+        }
+      }
+    }
+  });
+
+  // -------------------------------------------------------------
   // STEP 1: CLUBS DISRUPTIONS & HAND CONTROL (INCLUDING CLUBS FIGHTER PASSIVE)
   // -------------------------------------------------------------
   [

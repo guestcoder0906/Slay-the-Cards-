@@ -627,7 +627,19 @@ export default function App() {
             aiState.energy -= action.energyCost;
 
             if (action.heartDeclaration === 'heal') {
-              if (aiState.fighter) {
+              if (action.healTarget === 'minion' && aiState.minion) {
+                aiState.minion.hp = Math.min(aiState.minion.maxHp, aiState.minion.hp + basePts);
+                aiState.discardPile.push(action.card);
+                sounds.playHeal();
+              } else if (aiState.fighter && aiState.fighter.hp < aiState.fighter.maxHp) {
+                aiState.fighter.hp = Math.min(aiState.fighter.maxHp, aiState.fighter.hp + basePts);
+                aiState.discardPile.push(action.card);
+                sounds.playHeal();
+              } else if (aiState.minion && aiState.minion.hp < aiState.minion.maxHp) {
+                aiState.minion.hp = Math.min(aiState.minion.maxHp, aiState.minion.hp + basePts);
+                aiState.discardPile.push(action.card);
+                sounds.playHeal();
+              } else if (aiState.fighter) {
                 aiState.fighter.hp = Math.min(aiState.fighter.maxHp, aiState.fighter.hp + basePts);
                 aiState.discardPile.push(action.card);
                 sounds.playHeal();
@@ -875,9 +887,10 @@ export default function App() {
   // -------------------------------------------------------------
   const handlePlayActionCard = (
     card: Card,
-    orientation: 'horizontal',
+    orientation: 'horizontal' = 'horizontal',
     targetActionId?: string,
-    heartDec?: HeartDeclaration
+    heartDec?: HeartDeclaration,
+    healTarget?: 'fighter' | 'minion'
   ) => {
     setGameState(prev => {
       // Must be player's turn!
@@ -908,10 +921,21 @@ export default function App() {
 
       const basePts = getUniversalPoints(card);
 
-      // INSTANT HEAL: If heart is declared as heal, instantly heal fighter and discard card!
+      // INSTANT HEAL: If heart is declared as heal, instantly heal fighter or 1/2 health minion and discard card!
       if (heartDec === 'heal') {
-        if (player.fighter) {
-          player.fighter.hp = Math.min(player.fighter.maxHp, player.fighter.hp + basePts);
+        if (healTarget === 'minion' && player.minion) {
+          player.minion.hp = Math.min(player.minion.maxHp, player.minion.hp + basePts);
+          player.discardPile.push(card);
+          sounds.playHeal();
+          setPreRoundAnnouncement(`💚 Healing Light! ${card.name} restored your Ace Minion back to ${player.minion.hp}/${player.minion.maxHp} HP!`);
+        } else if (player.fighter) {
+          if (healTarget !== 'fighter' && player.fighter.hp >= player.fighter.maxHp && player.minion && player.minion.hp < player.minion.maxHp) {
+            player.minion.hp = Math.min(player.minion.maxHp, player.minion.hp + basePts);
+            setPreRoundAnnouncement(`💚 Healing Light! ${card.name} restored your Ace Minion back to ${player.minion.hp}/${player.minion.maxHp} HP!`);
+          } else {
+            player.fighter.hp = Math.min(player.fighter.maxHp, player.fighter.hp + basePts);
+            setPreRoundAnnouncement(`💚 Healing Light! ${card.name} restored ${basePts} HP to ${player.fighter.card.name} (${player.fighter.hp}/${player.fighter.maxHp} HP)!`);
+          }
           player.discardPile.push(card);
           sounds.playHeal();
         }
@@ -920,12 +944,11 @@ export default function App() {
       }
 
       // Inherent Diamond Champion Fighter Passive (+1 Boost to chosen action for 0 Energy)
+      // Always applies to your played action even if no Diamonds were played!
       let fighterBoost = 0;
       if (
         player.fighter?.affinity === 'diamonds' &&
-        card.suit !== 'diamonds' &&
-        !card.isJoker &&
-        !isFaceCard(card.rank)
+        !card.isJoker
       ) {
         const hasExistingFighterBoost = player.playedActions.some(a => (a.fighterBoostedPoints || 0) > 0);
         if (!hasExistingFighterBoost) {
@@ -1101,7 +1124,7 @@ export default function App() {
       if (player.fighter?.affinity !== 'diamonds') return prev;
 
       player.playedActions.forEach(a => {
-        if (a.id === actionId && !isFaceCard(a.card.rank) && a.heartDeclaration !== 'heal' && !a.isJokerAction && a.card.suit !== 'diamonds') {
+        if (a.id === actionId && a.heartDeclaration !== 'heal' && !a.isJokerAction) {
           if (!a.fighterBoostedPoints) {
             a.fighterBoostedPoints = 1;
             a.finalPoints += 1;
@@ -1805,8 +1828,10 @@ export default function App() {
       {pendingHeartCard && (
         <HeartChoiceModal
           card={pendingHeartCard}
-          onDeclare={declaration => {
-            handlePlayActionCard(pendingHeartCard, 'horizontal', undefined, declaration);
+          fighter={gameState.players[localPlayerIndex].fighter}
+          minion={gameState.players[localPlayerIndex].minion}
+          onDeclare={(declaration, healTarget) => {
+            handlePlayActionCard(pendingHeartCard, 'horizontal', undefined, declaration, healTarget);
             setPendingHeartCard(null);
           }}
           onCancel={() => setPendingHeartCard(null)}

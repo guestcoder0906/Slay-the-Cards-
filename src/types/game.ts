@@ -25,6 +25,7 @@ export interface PlayedActionCard {
   debuffedPoints: number;
   finalPoints: number;
   heartDeclaration?: HeartDeclaration;
+  healTarget?: 'fighter' | 'minion';
   targetActionId?: string; // e.g. for Diamond overcharge or Club debuff
   isJokerAction?: boolean; // joker negates attacks
   clubSpecial?: {

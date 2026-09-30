@@ -75,7 +75,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 <ul className="text-xs list-disc list-inside space-y-1 text-stone-300">
                   <li><strong>Numbered Fighters (Aces through 10)</strong>: 3 starting Health.</li>
                   <li><strong>Face Card Fighters (Jack, Queen, King)</strong>: 4 starting Health.</li>
-                  <li><strong>Automatic Suit Passives (0 Energy, Every Round)</strong>:
+                  <li><strong>Automatic Suit Passives (0 Energy, Every Round — always applies even if no cards of your Fighter's suit are played)</strong>:
                     <ul className="list-disc list-inside pl-4 space-y-0.5 text-stone-400 mt-1">
                       <li><strong className="text-slate-200">Spades Fighter (♠)</strong>: Deals <strong>+1 passive Attack damage</strong> automatically each round.</li>
                       <li><strong className="text-rose-400">Hearts Fighter (♥)</strong>: Grants <strong>+1 passive Shield</strong> each round, absorbing 1 incoming damage.</li>
@@ -147,7 +147,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
                 <div className="p-3 bg-stone-950 rounded-xl border border-rose-900/60 flex gap-3">
                   <Heart className="w-5 h-5 text-rose-500 shrink-0" />
                   <div>
-                    <strong className="text-rose-400">Hearts (Defense or Recovery)</strong>: Declare Block or Heal upon play. Block is played horizontally to absorb incoming attack points 1-for-1 during combat (protecting Minions first). Heal instantly restores lost health to your damaged Fighter up to max health, and the heal card is discarded immediately after instead of remaining on the table.
+                    <strong className="text-rose-400">Hearts (Defense or Recovery)</strong>: Declare Block or Heal upon play. Block is played horizontally to absorb incoming attack points 1-for-1 during combat (protecting Minions first). Heal instantly restores lost health to your damaged Fighter or your damaged 1/2 Health Ace Minion up to max health, and the heal card is discarded immediately after instead of remaining on the table.
                   </div>
                 </div>
                 <div className="p-3 bg-stone-950 rounded-xl border border-amber-900/60 flex gap-3">

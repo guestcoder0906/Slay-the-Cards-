@@ -240,7 +240,7 @@ export class AIPlayerService {
     }
 
     // Inherent Diamonds Fighter passive (+1 to chosen attack)
-    if (aiState.fighter?.affinity === 'diamonds' && upgradeableAttack) {
+    if (aiState.fighter?.affinity === 'diamonds' && potentialAttackCards.length > 0) {
       potentialAttackPoints += 1;
     }
 
@@ -474,24 +474,27 @@ export class AIPlayerService {
     }
 
     // -------------------------------------------------------------
-    // PRIORITY 5: HEALING (RESTORING DAMAGED FIGHTER)
+    // PRIORITY 5: HEALING (RESTORING DAMAGED FIGHTER OR 1/2 HEALTH ACE)
     // -------------------------------------------------------------
     const fighterHp = aiState.fighter?.hp || 3;
     const fighterMaxHp = aiState.fighter?.maxHp || 3;
     const isFighterDamaged = fighterHp < fighterMaxHp;
+    const isMinionDamaged = Boolean(aiState.minion && aiState.minion.hp < aiState.minion.maxHp);
 
-    if (isFighterDamaged && currentEnergy > 0) {
+    if ((isFighterDamaged || isMinionDamaged) && currentEnergy > 0) {
       const heartCards = hand.filter(c => c.suit === 'hearts' && !c.isJoker);
       for (const heart of heartCards) {
         const cost = getCardEnergyCost(heart);
         if (cost <= currentEnergy) {
           const check = canPlayActionOfSuit(heart, affinity, playedActions);
           if (check.allowed) {
+            const target: 'fighter' | 'minion' = isFighterDamaged ? 'fighter' : 'minion';
             onPlayAction({
               card: heart,
               orientation: 'horizontal',
               energyCost: cost,
               heartDeclaration: 'heal',
+              healTarget: target,
             });
             const idx = hand.findIndex(c => c.id === heart.id);
             if (idx >= 0) hand.splice(idx, 1);
@@ -548,8 +551,17 @@ export class AIPlayerService {
       const cost = getCardEnergyCost(cardToPlay);
 
       let heartDec: HeartDeclaration | undefined = undefined;
+      let healTarget: 'fighter' | 'minion' | undefined = undefined;
       if (cardToPlay.suit === 'hearts') {
-        heartDec = isFighterDamaged ? 'heal' : 'block';
+        if (isFighterDamaged) {
+          heartDec = 'heal';
+          healTarget = 'fighter';
+        } else if (isMinionDamaged) {
+          heartDec = 'heal';
+          healTarget = 'minion';
+        } else {
+          heartDec = 'block';
+        }
       }
 
       onPlayAction({
@@ -557,6 +569,7 @@ export class AIPlayerService {
         orientation: 'horizontal',
         energyCost: cost,
         heartDeclaration: heartDec,
+        healTarget,
       });
 
       playedActions.push({
