@@ -401,7 +401,7 @@ export default function App() {
       } else if (faceClub.rank === 13) {
         // King: Grand Heist
         ai.hand = ai.hand.filter(c => c.id !== faceClub.id);
-        ai.energy -= 3;
+        ai.energy -= cost;
         const sorted = [...opp.hand].sort((a, b) => getUniversalPoints(b) - getUniversalPoints(a));
         const stolen = sorted[0];
         const sIdx = opp.hand.findIndex(c => c.id === stolen.id);
@@ -443,15 +443,20 @@ export default function App() {
           setPreRoundAnnouncement(`⚡ Pre-Round Grand Heist! Strategic AI played King of Clubs and stole your ${stolen.name}!`);
         }
 
+        const clubPts = getUniversalPoints(faceClub);
         ai.playedActions.push({
           id: `ai_pre_king_${Date.now()}`,
           card: faceClub,
           orientation: 'horizontal',
-          energyCost: 3,
-          basePoints: 4,
+          energyCost: cost,
+          basePoints: clubPts,
           boostedPoints: 0,
           debuffedPoints: 0,
-          finalPoints: 4,
+          finalPoints: clubPts,
+          clubSpecial: {
+            type: 'king',
+            stolenCard: stolen,
+          },
         });
         sounds.playCardRotate();
       }
@@ -500,32 +505,36 @@ export default function App() {
     }
   };
 
+  const advancePreRoundFaceClubsInState = (state: GameState, finishingPlayerIdx: number) => {
+    if (finishingPlayerIdx === 0) {
+      const p2HasFaceClub = state.players[1].hand.some(c => c.suit === 'clubs' && isFaceCard(c.rank));
+      if (p2HasFaceClub) {
+        if (state.players[1].isAI) {
+          executeAiPreRoundFaceClub(state);
+          state.phase = 'round_action';
+          state.preRoundPendingPlayerIndex = null;
+          setPreRoundPendingPlayerIndex(null);
+        } else {
+          state.phase = 'pre_round_face_clubs';
+          state.preRoundPendingPlayerIndex = 1;
+          setPreRoundPendingPlayerIndex(1);
+        }
+      } else {
+        state.phase = 'round_action';
+        state.preRoundPendingPlayerIndex = null;
+        setPreRoundPendingPlayerIndex(null);
+      }
+    } else {
+      state.phase = 'round_action';
+      state.preRoundPendingPlayerIndex = null;
+      setPreRoundPendingPlayerIndex(null);
+    }
+  };
+
   const handlePreRoundPlayerFinished = (finishingPlayerIdx: number) => {
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
-      if (finishingPlayerIdx === 0) {
-        const p2HasFaceClub = next.players[1].hand.some(c => c.suit === 'clubs' && isFaceCard(c.rank));
-        if (p2HasFaceClub) {
-          if (next.players[1].isAI) {
-            executeAiPreRoundFaceClub(next);
-            next.phase = 'round_action';
-            next.preRoundPendingPlayerIndex = null;
-            setPreRoundPendingPlayerIndex(null);
-          } else {
-            next.phase = 'pre_round_face_clubs';
-            next.preRoundPendingPlayerIndex = 1;
-            setPreRoundPendingPlayerIndex(1);
-          }
-        } else {
-          next.phase = 'round_action';
-          next.preRoundPendingPlayerIndex = null;
-          setPreRoundPendingPlayerIndex(null);
-        }
-      } else {
-        next.phase = 'round_action';
-        next.preRoundPendingPlayerIndex = null;
-        setPreRoundPendingPlayerIndex(null);
-      }
+      advancePreRoundFaceClubsInState(next, finishingPlayerIdx);
       broadcastGameState(next);
       return next;
     });
@@ -533,7 +542,7 @@ export default function App() {
 
   const handleApplyPreRoundDebuff = (card: Card) => {
     const cost = getCardEnergyCost(card);
-    const targetIdx = preRoundPendingPlayerIndex ?? 0;
+    const targetIdx = localPlayerIndex;
     const points = getUniversalPoints(card);
     setGameState(prev => {
       const next: GameState = JSON.parse(JSON.stringify(prev));
@@ -555,9 +564,10 @@ export default function App() {
       });
 
       sounds.playBlock();
+      advancePreRoundFaceClubsInState(next, targetIdx);
+      broadcastGameState(next);
       return next;
     });
-    handlePreRoundPlayerFinished(targetIdx);
   };
 
   // -------------------------------------------------------------
@@ -1756,20 +1766,17 @@ export default function App() {
               });
 
               sounds.playCardRotate();
+              if (next.phase === 'pre_round_face_clubs') {
+                advancePreRoundFaceClubsInState(next, localPlayerIndex);
+              }
               broadcastGameState(next);
               return next;
             });
             setPendingClubCard(null);
-            if (gameState.phase === 'pre_round_face_clubs') {
-              handlePreRoundPlayerFinished(localPlayerIndex);
-            }
           }}
           onConfirmDestroyEquipment={() => {
             handlePlayActionCard(pendingClubCard, 'horizontal');
             setPendingClubCard(null);
-            if (gameState.phase === 'pre_round_face_clubs') {
-              handlePreRoundPlayerFinished(localPlayerIndex);
-            }
           }}
           onConfirmJackDiscard={(targetCardId?: string) => {
             setGameState(prev => {
@@ -1825,13 +1832,13 @@ export default function App() {
               }
 
               sounds.playCardRotate();
+              if (next.phase === 'pre_round_face_clubs') {
+                advancePreRoundFaceClubsInState(next, localPlayerIndex);
+              }
               broadcastGameState(next);
               return next;
             });
             setPendingClubCard(null);
-            if (gameState.phase === 'pre_round_face_clubs') {
-              handlePreRoundPlayerFinished(localPlayerIndex);
-            }
           }}
           onConfirmQueenDiscard={targetCardId => {
             setGameState(prev => {
@@ -1881,13 +1888,13 @@ export default function App() {
               }
 
               sounds.playCardRotate();
+              if (next.phase === 'pre_round_face_clubs') {
+                advancePreRoundFaceClubsInState(next, localPlayerIndex);
+              }
               broadcastGameState(next);
               return next;
             });
             setPendingClubCard(null);
-            if (gameState.phase === 'pre_round_face_clubs') {
-              handlePreRoundPlayerFinished(localPlayerIndex);
-            }
           }}
           onConfirmKingSteal={(stolenCardId, asMinion) => {
             setGameState(prev => {
@@ -1982,19 +1989,16 @@ export default function App() {
               }
 
               sounds.playCardRotate();
+              if (next.phase === 'pre_round_face_clubs') {
+                advancePreRoundFaceClubsInState(next, localPlayerIndex);
+              }
               broadcastGameState(next);
               return next;
             });
             setPendingClubCard(null);
-            if (gameState.phase === 'pre_round_face_clubs') {
-              handlePreRoundPlayerFinished(localPlayerIndex);
-            }
           }}
           onCancel={() => {
             setPendingClubCard(null);
-            if (gameState.phase === 'pre_round_face_clubs') {
-              handlePreRoundPlayerFinished(localPlayerIndex);
-            }
           }}
         />
       )}
