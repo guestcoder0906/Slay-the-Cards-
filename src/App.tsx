@@ -637,6 +637,63 @@ export default function App() {
               isJokerAction: action.isJokerAction,
               clubSpecial: action.clubSpecial,
             });
+
+            // If AI plays a Face Club special (Jack/Queen discard, or King heist)
+            if (action.clubSpecial?.type === 'jack' || action.clubSpecial?.type === 'queen') {
+              const humanPlayer = next.players[0];
+              const tId = action.clubSpecial.targetCardId;
+              const cIdx = humanPlayer.hand.findIndex(c => c.id === tId);
+              if (cIdx >= 0) {
+                const discarded = humanPlayer.hand.splice(cIdx, 1)[0];
+                humanPlayer.discardPile.push(discarded);
+                if (humanPlayer.bankedCardId === discarded.id) {
+                  humanPlayer.bankedCardId = null;
+                  humanPlayer.energy = Math.min(3, humanPlayer.energy + 1);
+                }
+              }
+            } else if (action.clubSpecial?.type === 'king') {
+              const humanPlayer = next.players[0];
+              const tId = action.clubSpecial.targetCardId;
+              const cIdx = humanPlayer.hand.findIndex(c => c.id === tId);
+              if (cIdx >= 0) {
+                const stolen = humanPlayer.hand.splice(cIdx, 1)[0];
+                if (humanPlayer.bankedCardId === stolen.id) {
+                  humanPlayer.bankedCardId = null;
+                  humanPlayer.energy = Math.min(3, humanPlayer.energy + 1);
+                }
+                // Play stolen card for AI at 0 additional energy!
+                if (stolen.rank === 1 && !aiState.minion) {
+                  aiState.minion = {
+                    id: `ai_minion_${Date.now()}`,
+                    aceCard: stolen,
+                    hp: 1,
+                    maxHp: 1,
+                  };
+                  sounds.playBlock();
+                } else {
+                  const sPts = getUniversalPoints(stolen);
+                  if (stolen.suit === 'diamonds') {
+                    const targetAction = aiState.playedActions.find(a => a.card.suit === 'spades');
+                    if (targetAction) {
+                      targetAction.boostedPoints += sPts;
+                      targetAction.finalPoints += sPts;
+                    }
+                  }
+                  aiState.playedActions.push({
+                    id: `ai_stolen_act_${Date.now()}`,
+                    card: stolen,
+                    orientation: 'horizontal',
+                    energyCost: 0,
+                    basePoints: sPts,
+                    boostedPoints: 0,
+                    debuffedPoints: 0,
+                    finalPoints: sPts,
+                    heartDeclaration: stolen.suit === 'hearts' ? 'block' : undefined,
+                  });
+                }
+              }
+            }
+
             sounds.playCardPlace();
           },
           aceCard => {

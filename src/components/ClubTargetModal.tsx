@@ -230,7 +230,7 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
                 <Hand className="w-8 h-8 text-emerald-400 mb-1" />
                 <h4 className="text-base font-serif font-bold text-emerald-300">King of Clubs: Grand Heist</h4>
                 <p className="text-xs text-stone-300 text-center mb-4">
-                  Inspect opponent's hand. Choose 1 card to steal and play this round, or pass with 1 energy refunded.
+                  Inspect opponent's hand. Choose 1 card to steal and play this round for <strong>0 Energy (Free)</strong>, or pass with 1 energy refunded.
                 </p>
 
                 <div className="flex flex-wrap justify-center gap-3 mb-4 max-h-52 overflow-y-auto p-2 w-full bg-stone-950/60 rounded-2xl border border-stone-800">
@@ -275,7 +275,7 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
                             : 'bg-stone-800 text-stone-500 cursor-not-allowed'
                         }`}
                       >
-                        <Hand className="w-4 h-4" /> Steal & Play This Round
+                        <Hand className="w-4 h-4" /> Steal & Play This Round (Free / 0⚡)
                       </button>
                       {isAce && (
                         <button
@@ -284,7 +284,7 @@ export const ClubTargetModal: React.FC<ClubTargetModalProps> = ({
                           }}
                           className="flex items-center gap-2 px-5 py-2 font-bold text-xs rounded-xl bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-lg shadow-blue-700/40 transition-all active:scale-95 border border-blue-400/50"
                         >
-                          <Shield className="w-4 h-4 text-blue-200" /> Steal & Play as Minion This Round
+                          <Shield className="w-4 h-4 text-blue-200" /> Steal & Play as Minion (Free / 0⚡)
                         </button>
                       )}
                     </div>
