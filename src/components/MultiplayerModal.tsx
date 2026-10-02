@@ -4,21 +4,15 @@ import {
   Users,
   Copy,
   Check,
-  Radio,
   Share2,
   CheckCircle2,
-  Zap,
   ArrowRight,
   LogOut,
-  ShieldCheck,
   UserCheck,
   Sparkles,
   PlayCircle,
-  HelpCircle,
-  Wifi,
   Globe,
 } from 'lucide-react';
-import { socketService } from '../services/socketService';
 
 interface MultiplayerModalProps {
   currentMode: MultiplayerMode;
@@ -48,7 +42,6 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [showSwitchRoom, setShowSwitchRoom] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
-  const isSupabase = socketService.isSupabaseConfigured();
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(roomCode);
@@ -97,30 +90,6 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
           >
             ✕ Close
           </button>
-        </div>
-
-        {/* Network Engine Status Pill */}
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-stone-950 border border-stone-800/90 mb-4 text-xs">
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                isConnected
-                  ? 'bg-emerald-400 animate-ping'
-                  : 'bg-amber-400 animate-pulse'
-              }`}
-            />
-            <span className="text-stone-300 font-semibold">
-              {isConnected
-                ? isSupabase
-                  ? 'Supabase Realtime Live Network'
-                  : 'WebSocket Engine Synchronized'
-                : 'Connecting to Realtime Network...'}
-            </span>
-          </div>
-          <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700 flex items-center gap-1 font-mono font-bold">
-            <Wifi className="w-3 h-3 text-emerald-400" />
-            {isSupabase ? 'Supabase Realtime' : 'WebSockets'}
-          </span>
         </div>
 
         {/* ================= ALREADY IN ROOM ================= */}
@@ -337,14 +306,14 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     Join an Existing Match
                   </h4>
                   <p className="text-xs text-stone-400 mt-1 max-w-sm">
-                    Enter the 6-character room code shared by your friend to join their game.
+                    Paste or type the 6-character room code shared by your opponent to join their match.
                   </p>
                 </div>
 
                 <div className="w-full flex gap-2 mt-2">
                   <input
                     type="text"
-                    placeholder="ENTER 6-CHAR CODE"
+                    placeholder="ROOM CODE"
                     value={joinCodeInput}
                     onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
                     maxLength={6}

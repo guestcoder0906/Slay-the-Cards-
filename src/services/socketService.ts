@@ -6,6 +6,42 @@ export interface SocketPlayer {
   ready: boolean;
 }
 
+export function getSupabaseConfig(): { url: string; key: string } {
+  const env = (import.meta as any).env || {};
+  const procEnv = typeof process !== 'undefined' && process.env ? process.env : ({} as any);
+
+  let url =
+    env.VITE_SUPABASE_URL ||
+    env.SUPABASE_URL ||
+    env.NEXT_PUBLIC_SUPABASE_URL ||
+    procEnv.VITE_SUPABASE_URL ||
+    procEnv.SUPABASE_URL ||
+    procEnv.NEXT_PUBLIC_SUPABASE_URL ||
+    '';
+
+  let key =
+    env.VITE_SUPABASE_ANON_KEY ||
+    env.SUPABASE_ANON_KEY ||
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    env.VITE_SUPABASE_KEY ||
+    env.SUPABASE_KEY ||
+    procEnv.VITE_SUPABASE_ANON_KEY ||
+    procEnv.SUPABASE_ANON_KEY ||
+    procEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    procEnv.VITE_SUPABASE_KEY ||
+    procEnv.SUPABASE_KEY ||
+    '';
+
+  url = String(url || '').trim().replace(/^["']|["']$/g, '');
+  key = String(key || '').trim().replace(/^["']|["']$/g, '');
+
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+
+  return { url, key };
+}
+
 export class RealtimeGameService {
   private supabase: SupabaseClient | null = null;
   private channel: RealtimeChannel | null = null;
@@ -18,9 +54,14 @@ export class RealtimeGameService {
   private currentGameState: any = null;
 
   public isSupabaseConfigured(): boolean {
-    const url = import.meta.env.VITE_SUPABASE_URL;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    return Boolean(url && key && String(url).startsWith('http') && !String(url).includes('your-project'));
+    const { url, key } = getSupabaseConfig();
+    return Boolean(
+      url &&
+      key &&
+      url.startsWith('http') &&
+      !url.includes('your-project') &&
+      !key.includes('your-anon-key')
+    );
   }
 
   public getTransportType(): 'supabase' | 'websocket' {
@@ -50,8 +91,11 @@ export class RealtimeGameService {
 
   private connectSupabase() {
     try {
-      const url = import.meta.env.VITE_SUPABASE_URL;
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const { url, key } = getSupabaseConfig();
+      if (!url || !key) {
+        this.onStatusChangeCallback?.(false);
+        return;
+      }
 
       if (!this.supabase) {
         this.supabase = createClient(url, key, {

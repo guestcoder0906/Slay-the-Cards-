@@ -2352,7 +2352,7 @@ export default function App() {
       {/* Official Rules Modal */}
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
 
-      {/* WebSocket / Supabase Multiplayer Modal */}
+      {/* 1v1 Live Multiplayer Modal */}
       {showMultiplayer && (
         <MultiplayerModal
           currentMode={mode}
